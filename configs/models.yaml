@@ -1,0 +1,36 @@
+# Model configurations for safety refusal stability experiments
+
+models:
+  llama-3.1-8b-instruct:
+    hf_name: "meta-llama/Llama-3.1-8B-Instruct"
+    short_name: "Llama-3.1-8B"
+    family: "llama"
+    size: "8B"
+    requires_auth: true
+
+  mistral-7b-instruct:
+    hf_name: "mistralai/Mistral-7B-Instruct-v0.3"
+    short_name: "Mistral-7B"
+    family: "mistral"
+    size: "7B"
+    requires_auth: false
+
+  qwen-2.5-7b-instruct:
+    hf_name: "Qwen/Qwen2.5-7B-Instruct"
+    short_name: "Qwen-2.5-7B"
+    family: "qwen"
+    size: "7B"
+    requires_auth: false
+
+# Judge model configuration
+judge:
+  hf_name: "meta-llama/Llama-3.1-70B-Instruct"
+  short_name: "Llama-3.1-70B"
+  requires_auth: true
+
+# vLLM settings
+vllm:
+  tensor_parallel_size: 1  # increase for multi-GPU
+  gpu_memory_utilization: 0.60  # reduced from 0.90 to avoid conflicts
+  dtype: "auto"  # or "float16", "bfloat16"
+  max_model_len: 4096  # context window

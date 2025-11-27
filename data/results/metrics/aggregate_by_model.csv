@@ -1,0 +1,2 @@
+model,num_prompts,mean_ssi,std_ssi,pct_unstable,pct_flipped,mean_refusal_rate,mean_partial_rate,mean_comply_rate
+meta-llama/Llama-3.1-8B-Instruct,876,0.7989561927515216,0.32383483600126156,31.963470319634702,31.963470319634702,0.8314692687937948,0.10947912690671077,0.05905160429949437
