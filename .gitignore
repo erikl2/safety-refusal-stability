@@ -60,3 +60,6 @@ models/
 
 # Lambda credentials
 lambda-ssh-key.pem
+
+# AI coding artifacts (internal planning docs)
+artifact2_*.md
