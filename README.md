@@ -2,6 +2,8 @@
 
 **Research investigating how stable LLM safety refusal decisions are across different random seeds and temperature settings.**
 
+**[Interactive Demo on Hugging Face Spaces](https://huggingface.co/spaces/elarsen21/safety-stability-explorer)**
+
 ## Key Finding
 
 **32% of harmful prompts produce inconsistent safety decisions** when varying only random seed and temperature settings, demonstrating that single-shot safety evaluations are insufficient for reliable safety assessment.
