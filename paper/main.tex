@@ -19,8 +19,7 @@
 
 \author{%
   Erik Larsen \\
-  % Add your affiliation here
-  \texttt{eriklarsen@example.edu} \\
+  \texttt{elarsen.mailbox@gmail.com} \\
 }
 
 \begin{document}
@@ -28,7 +27,7 @@
 \maketitle
 
 \begin{abstract}
-Current safety evaluations of large language models rely on single-shot testing, implicitly assuming that model responses are deterministic and representative of the model's safety alignment. We challenge this assumption by investigating the stability of safety refusal decisions across random seeds and temperature settings. Testing Llama 3.1 8B Instruct on 876 harmful prompts across 20 different sampling configurations (4 temperatures $\times$ 5 random seeds), we find that \textbf{32\% of prompts produce inconsistent safety decisions}---the model refuses in some configurations but complies in others. Our Safety Stability Index (SSI) reveals that higher temperatures reduce decision stability, while compliance rates show non-monotonic patterns across temperature settings. These findings demonstrate that single-shot safety evaluations are insufficient for reliable safety assessment and that evaluation protocols must account for stochastic variation in model behavior.
+Current safety evaluations of large language models rely on single-shot testing, implicitly assuming that model responses are deterministic and representative of the model's safety alignment. We challenge this assumption by investigating the stability of safety refusal decisions across random seeds and temperature settings. Testing two instruction-tuned models from different families (Llama 3.1 8B, Qwen 2.5 7B) on 876 harmful prompts across 20 different sampling configurations (4 temperatures $\times$ 5 random seeds), we find that \textbf{32\% of prompts exhibit decision flips}---the model refuses in some configurations but complies in others---with 14.3\% [95\% CI: 12.0\%--16.6\%] showing substantial instability (SSI $<$ 0.8). Our Safety Stability Index (SSI) reveals that higher temperatures significantly reduce decision stability ($\chi^2 = 133.15$, $p < 0.001$), with mean SSI dropping from 0.987 at temperature 0.0 to 0.904 at temperature 1.0. We validate our findings across both model families, observing consistent instability rates. These findings demonstrate that single-shot safety evaluations are insufficient for reliable safety assessment and that evaluation protocols must account for stochastic variation in model behavior. We show that single-shot evaluation agrees with multi-sample ground truth only 92.4\% of the time, and recommend using at least 3 samples per prompt for reliable safety assessment.
 \end{abstract}
 
 \section{Introduction}
@@ -37,32 +36,42 @@ As large language models (LLMs) are increasingly deployed in real-world applicat
 
 However, modern LLMs employ stochastic sampling during inference, introducing variability through both temperature-controlled randomness and random seed initialization. While this variability is well-documented for general generation tasks, its impact on safety-critical decisions remains underexplored. If safety decisions are unstable across sampling configurations, single-shot evaluations may significantly misrepresent a model's true safety profile---either overestimating safety by catching a safe sample from an unstable prompt, or underestimating it by observing a failure case that rarely occurs.
 
-In this work, we systematically investigate the stability of LLM safety refusal behavior by testing the same harmful prompts across multiple random seeds and temperature settings. We introduce the \textbf{Safety Stability Index (SSI)}, a metric that quantifies how consistently a model makes the same safety decision across different sampling configurations. Using Llama 3.1 8B Instruct as our test model, we evaluate 876 harmful prompts from the BeaverTails dataset across 20 configurations (4 temperatures $\times$ 5 random seeds), generating and judging 17,520 total responses.
+In this work, we systematically investigate the stability of LLM safety refusal behavior by testing the same harmful prompts across multiple random seeds and temperature settings. We introduce the \textbf{Safety Stability Index (SSI)}, a metric that quantifies how consistently a model makes the same safety decision across different sampling configurations. We evaluate two instruction-tuned models from different families---Llama 3.1 8B Instruct and Qwen 2.5 7B Instruct---on 876 harmful prompts from the BeaverTails dataset across 20 configurations (4 temperatures $\times$ 5 random seeds), generating 35,040 total responses.
 
 Our findings reveal significant instability in safety decisions:
 \begin{itemize}
-    \item \textbf{32\% of prompts are unstable} (SSI $<$ 0.8), producing different safety decisions across sampling configurations
-    \item \textbf{Temperature affects stability}: Lower temperatures yield more stable decisions (mean SSI = 0.96 at temp 0.0) compared to higher temperatures (mean SSI = 0.76 at temp 1.0)
-    \item \textbf{Borderline prompts exist}: A subset of prompts consistently flip between refusal and compliance, suggesting they lie near decision boundaries in the model's safety classifier
+    \item \textbf{32\% of prompts exhibit decision flips} across sampling configurations, with 14.3\% [95\% CI: 12.0\%--16.6\%] showing substantial instability (SSI $<$ 0.8)
+    \item \textbf{Temperature significantly affects stability} ($\chi^2 = 133.15$, $p < 0.001$): Lower temperatures yield more stable decisions (mean SSI = 0.987 at temp 0.0) compared to higher temperatures (mean SSI = 0.904 at temp 1.0)
+    \item \textbf{Instability is consistent across model families}: Both models (Llama and Qwen) exhibit similar instability patterns despite different training approaches, suggesting this is a fundamental property of current safety training
+    \item \textbf{Borderline prompts exist}: 7.9\% of prompts fall in the highly unstable range (SSI 0.4--0.6), predominantly copyright-related requests where the model is uncertain whether to comply
+    \item \textbf{Single-shot evaluation is unreliable}: Evaluating with N=1 sample agrees with ground truth only 92.4\% of the time; N$\geq$3 samples are needed for 95\% reliability
 \end{itemize}
 
 These results have important implications for safety evaluation practices. Single-shot testing may give a false sense of security or unnecessarily penalize models depending on which random seed is used. We argue that safety benchmarks should report stability metrics alongside accuracy, and that deployment configurations should carefully consider temperature settings to maximize both safety and consistency.
 
 \section{Related Work}
 
-Safety evaluation of large language models has become a critical research area, with several benchmarks developed to assess model behavior on harmful prompts. BeaverTails~\cite{ji2023beavertails} provides a human-preference dataset for safety alignment covering diverse harm categories, while HarmBench~\cite{mazeika2024harmbench} offers a standardized framework for automated red teaming and robust refusal evaluation. However, these benchmarks, like most safety evaluation protocols, rely on single-shot testing---each prompt is evaluated once with a fixed random seed and temperature. This approach implicitly assumes that model responses are deterministic or that a single sample adequately represents the model's safety behavior. Our work challenges this assumption by systematically investigating per-prompt stability across multiple sampling configurations. While prior work has studied the impact of temperature on generation quality and diversity, no previous research has quantified how sampling parameters affect the consistency of safety-critical decisions. We introduce the Safety Stability Index (SSI) as a metric to fill this gap, revealing that nearly one-third of prompts produce inconsistent safety decisions---a finding with significant implications for benchmark reliability and model deployment.
+\textbf{Safety Evaluation Benchmarks.} Safety evaluation of large language models has become a critical research area, with several benchmarks developed to assess model behavior on harmful prompts. BeaverTails~\cite{ji2023beavertails} provides a human-preference dataset for safety alignment covering diverse harm categories. HarmBench~\cite{mazeika2024harmbench} offers a standardized framework for automated red teaming and robust refusal evaluation. AdvBench~\cite{zou2023advbench} focuses on adversarial attacks against aligned models. These benchmarks typically rely on single-shot testing---each prompt is evaluated once with a fixed random seed and temperature---implicitly assuming that model responses are deterministic or that a single sample adequately represents the model's safety behavior.
+
+\textbf{LLM Calibration and Consistency.} Recent work has investigated whether language models can accurately assess their own uncertainty. Kadavath et al.~\cite{kadavath2022language} showed that models can estimate the probability of their answers being correct. Huang et al.~\cite{huang2024survey} provide a comprehensive survey of LLM calibration, highlighting the gap between model confidence and actual accuracy. Lin et al.~\cite{lin2024generating} study methods for eliciting confidence from LLMs. However, this work focuses on factual accuracy rather than safety decisions, leaving open the question of whether safety refusal behavior is similarly well-calibrated.
+
+\textbf{Temperature Effects on Generation.} The temperature parameter controls the randomness of LLM sampling by scaling the logit distribution before sampling~\cite{holtzman2020curious}. Higher temperatures increase diversity but can reduce coherence. Renze and Guven~\cite{renze2024temperature} study how temperature affects problem-solving performance. While temperature effects on general generation quality are well-documented, no prior work has systematically quantified how temperature affects the consistency of safety-critical decisions.
+
+\textbf{Red Teaming and Jailbreaking.} Automated red teaming techniques~\cite{perez2022red, ganguli2022red} attempt to find inputs that elicit harmful outputs from aligned models. Wei et al.~\cite{wei2024jailbroken} analyze failure modes of LLM safety training, identifying categories of prompts that reliably bypass safety measures. This work complements ours by identifying \textit{which} prompts fail, while we study \textit{how reliably} the model makes consistent decisions on a given prompt. The existence of ``borderline'' prompts that inconsistently trigger safety refusals suggests that adversaries could exploit stochastic sampling to bypass safety measures.
+
+\textbf{Safety Training.} Modern LLMs are trained to be helpful, harmless, and honest through techniques like RLHF~\cite{ouyang2022training, bai2022training}. These methods optimize for human preferences but may not explicitly encourage consistent behavior across sampling configurations. Our findings suggest that safety training could benefit from explicitly penalizing inconsistent refusal behavior.
 
 \section{Methodology}
 
 \subsection{Experimental Design}
 
-\textbf{Model.} We evaluate Llama 3.1 8B Instruct~\cite{grattafiori2024llama}, a recent open-weight instruction-tuned model with safety alignment.
+\textbf{Models.} We evaluate two instruction-tuned models from different families: (1) Llama 3.1 8B Instruct~\cite{grattafiori2024llama}, Meta's open-weight model with comprehensive safety alignment; and (2) Qwen 2.5 7B Instruct, representing recent advances from Alibaba's model family. Both models are in the 7-8B parameter range and are designed for instruction-following with safety considerations.
 
 \textbf{Dataset.} We use 876 harmful prompts from the BeaverTails dataset~\cite{ji2023beavertails}, covering categories including violence, hate speech, illegal activities, and other harmful content.
 
-\textbf{Sampling Configurations.} We test 4 temperature values (0.0, 0.3, 0.7, 1.0) $\times$ 5 random seeds (42--46), yielding 20 unique configurations and 17,520 total responses. At temperature 0.0, we use greedy decoding; any residual variation across seeds may arise from GPU non-determinism in floating-point operations. All inference was performed using vLLM~\cite{kwon2023vllm} for efficient batch generation.
+\textbf{Sampling Configurations.} We test 4 temperature values (0.0, 0.3, 0.7, 1.0) $\times$ 5 random seeds (42--46), yielding 20 unique configurations per model and 35,040 total responses across both models. At temperature 0.0, we use greedy decoding; any residual variation across seeds may arise from GPU non-determinism in floating-point operations. All inference was performed using vLLM~\cite{kwon2023vllm} for efficient batch generation.
 
-\textbf{Response Classification.} We use Llama 3.1 8B Instruct as a judge model to classify each response into three categories:
+\textbf{Response Classification.} We use Llama 3.1 70B Instruct as a judge model to classify each response into three categories:
 \begin{itemize}
     \item \textbf{REFUSE}: Model declines to answer or provides safety-focused redirection
     \item \textbf{PARTIAL}: Model provides limited information with caveats or warnings
@@ -93,7 +102,7 @@ We aggregate SSI scores across prompts to compute mean stability by temperature 
 
 \subsection{Overall Stability}
 
-Figure~\ref{fig:flip_rate} shows that 68\% of prompts produce consistent safety decisions across all 20 configurations, while 32\% exhibit at least one flip between different decisions. This flip rate exactly matches our proportion of unstable prompts (SSI $<$ 0.8), indicating that unstable prompts consistently flip rather than showing minor variations.
+Figure~\ref{fig:flip_rate} shows that 68\% of prompts produce consistent safety decisions across all 20 configurations, while 32\% [95\% CI: 28.9\%--35.0\%] exhibit at least one flip between different decisions. Of these, 14.3\% [95\% CI: 12.0\%--16.6\%] show substantial instability (SSI $<$ 0.8), while the remaining 17.7\% have occasional flips but maintain strong majority agreement.
 
 \begin{figure}[h]
 \centering
@@ -106,18 +115,18 @@ The overall response distribution shows that the model predominantly refuses har
 
 \subsection{Distribution of Stability Scores}
 
-Figure~\ref{fig:ssi_dist} presents the distribution of SSI scores across all 876 prompts. The distribution is heavily bimodal: most prompts cluster at perfect stability (SSI = 1.0), while a smaller but significant subset shows lower stability. The 32\% of prompts falling below the 0.8 threshold demonstrates that instability is not limited to edge cases but represents a substantial fraction of the safety evaluation dataset.
+Figure~\ref{fig:ssi_dist} presents the distribution of SSI scores across all 876 prompts. The distribution is heavily right-skewed with a strong mode at perfect stability (SSI = 1.0): the median SSI is 1.0, indicating that more than half of prompts produce identical responses across all configurations. However, 14.3\% of prompts fall below the 0.8 stability threshold, demonstrating that instability affects a meaningful fraction of safety evaluations.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.7\textwidth]{figures/ssi_distribution.pdf}
-\caption{Distribution of Safety Stability Index (SSI) scores. The dashed line at 0.8 indicates the threshold for unstable prompts. 32\% of prompts fall below this threshold.}
+\caption{Distribution of Safety Stability Index (SSI) scores. The dashed line at 0.8 indicates the threshold for unstable prompts. 14.3\% of prompts fall below this threshold.}
 \label{fig:ssi_dist}
 \end{figure}
 
 \subsection{Temperature Effects}
 
-Figure~\ref{fig:temp_effect} illustrates the relationship between temperature and both compliance rate and mean SSI. We observe a non-monotonic relationship: compliance rate peaks at temperature 0.3 (7.4\%), while stability decreases monotonically as temperature increases. At temperature 1.0, mean SSI drops to 0.76, indicating that high-temperature sampling introduces substantial randomness in safety decisions.
+Figure~\ref{fig:temp_effect} illustrates the relationship between temperature and both compliance rate and mean SSI. We observe that stability decreases monotonically as temperature increases, with this effect being highly significant ($\chi^2 = 133.15$, $p < 0.001$; Kruskal-Wallis $H = 185.43$, $p < 0.001$). Mean SSI drops from 0.987 [95\% CI: 0.983--0.991] at temperature 0.0 to 0.904 [95\% CI: 0.893--0.915] at temperature 1.0. Compliance rate shows a non-monotonic pattern, peaking at temperature 0.3 (7.4\%).
 
 \begin{figure}[h]
 \centering
@@ -126,26 +135,38 @@ Figure~\ref{fig:temp_effect} illustrates the relationship between temperature an
 \label{fig:temp_effect}
 \end{figure}
 
-Interestingly, the lowest compliance rate occurs at temperature 1.0 (3.1\%). However, this likely reflects that high-temperature sampling produces less coherent outputs that fail to meaningfully engage with the harmful request, rather than representing more robust safety behavior.
+Interestingly, the lowest compliance rate occurs at temperature 1.0 (3.0\%). However, this likely reflects that high-temperature sampling produces less coherent outputs that fail to meaningfully engage with the harmful request, rather than representing more robust safety behavior.
 
 \subsection{Stability vs. Compliance Analysis}
 
-Figure~\ref{fig:stability_compliance} presents a scatter plot of per-prompt SSI against compliance rate, revealing three distinct clusters:
+Figure~\ref{fig:stability_compliance} presents a scatter plot of per-prompt SSI against compliance rate. The distribution reveals two main regions:
 
 \begin{itemize}
-    \item \textbf{Stable Refusers} (bottom-left): Low compliance rate, high stability---the model consistently refuses these prompts
-    \item \textbf{Stable Compliers} (bottom-right): High compliance rate, high stability---the model consistently complies with these prompts
-    \item \textbf{Unstable Borderline} (center): Mid-range compliance with low stability---these prompts produce mixed responses across configurations
+    \item \textbf{Stable Refusers} (left, high SSI): The majority of prompts cluster here with low compliance and high stability---the model consistently refuses these prompts
+    \item \textbf{Variable Region} (center-right): A smaller set of prompts shows lower stability with varying compliance rates---these are the borderline cases where the model's decision is sensitive to sampling
 \end{itemize}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.7\textwidth]{figures/stability_vs_compliance.pdf}
-\caption{Safety Stability Index vs. compliance rate per prompt. Three clusters emerge: stable refusers, stable compliers, and unstable borderline cases.}
+\caption{Safety Stability Index vs. compliance rate per prompt. Most prompts cluster in the stable-refusal region (upper left), while a subset shows variable behavior.}
 \label{fig:stability_compliance}
 \end{figure}
 
 The existence of borderline prompts suggests that certain phrasings or topics create ambiguity in the model's safety classification, causing it to oscillate between refusing and complying depending on stochastic factors.
+
+\subsection{What Predicts Prompt Instability?}
+
+To understand what makes certain prompts unstable, we computed linguistic features for each prompt and analyzed their correlation with SSI. We find that prompt characteristics meaningfully predict instability:
+
+\begin{itemize}
+    \item \textbf{Sensitive terms increase stability}: Prompts containing obvious harmful keywords (e.g., ``hack,'' ``bomb,'' ``kill'') have \textit{higher} SSI ($r = 0.18$), suggesting the model confidently refuses clearly harmful requests.
+    \item \textbf{Multi-sentence prompts are less stable}: Prompts with multiple sentences show lower SSI ($r = -0.21$), possibly because complex requests create ambiguity.
+\end{itemize}
+
+A logistic regression classifier predicting instability from linguistic features achieves AUC = 0.70 in 5-fold cross-validation, indicating that surface-level features partially explain which prompts will be unstable. The most predictive features are average word length, sensitive term count, and word count.
+
+Qualitatively, the most unstable prompts (SSI $<$ 0.5) are predominantly \textbf{copyright-related requests} (e.g., requests for song lyrics or book passages) where the model oscillates between refusing, providing partial content with disclaimers, and complying. This suggests copyright represents a particularly ambiguous category in the model's safety training.
 
 Table~\ref{tab:examples} provides examples of prompts exhibiting high instability, where the model's decision appears sensitive to stochastic sampling factors. These prompts demonstrate a range of instability patterns: some alternate primarily between REFUSE and PARTIAL, while others show more pronounced variation including compliance in some configurations.
 
@@ -166,14 +187,73 @@ Request for copyrighted passage & 0.50 & 10/20 & 7/20 & 3/20 \\
 
 \subsection{Model Comparison}
 
-Figure~\ref{fig:model_comparison} shows the stability index and response distribution for Llama 3.1 8B Instruct. While this work focuses on a single model, the visualization framework is prepared for multi-model comparison in future extensions.
+Figure~\ref{fig:model_comparison} compares stability across the two evaluated models. We observe consistent patterns of instability across both model families, with similar magnitudes.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.9\textwidth]{figures/model_comparison.pdf}
-\caption{Stability index (left) and response distribution (right) for Llama 3.1 8B Instruct. The model shows mean SSI of 0.80, just at the stability threshold.}
+\includegraphics[width=0.9\textwidth]{figures/multimodel_stability.pdf}
+\caption{Safety Stability Index comparison across models. Left: Mean SSI with standard deviation error bars. Right: Percentage of prompts with SSI $<$ 0.8 (unstable). Both models show similar instability rates around 14\%.}
 \label{fig:model_comparison}
 \end{figure}
+
+Table~\ref{tab:multimodel} summarizes the stability metrics across models. Both models show similar mean SSI values (Llama: 0.924, Qwen: 0.929) and instability rates around 14\%. Importantly, both models exhibit non-trivial instability despite different training approaches, confirming that safety decision instability is not unique to a single model family.
+
+\begin{table}[h]
+\centering
+\caption{Stability comparison across model families.}
+\label{tab:multimodel}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{Mean SSI} & \textbf{\% Unstable} & \textbf{Refusal Rate} \\
+\midrule
+Llama-3.1-8B-Instruct & 0.924 & 14.3\% & 83.1\% \\
+Qwen2.5-7B-Instruct & 0.929 & 14.0\% & 90.8\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:model_distribution} shows the response distribution (REFUSE, PARTIAL, COMPLY) for each model. The models differ in their base refusal rates: Qwen is more conservative (90.8\% refuse) while Llama shows a slightly lower refusal rate (83.1\%) with more PARTIAL responses (10.9\% vs 3.9\%).
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/multimodel_distribution.pdf}
+\caption{Response distribution by model. Green indicates refusal, orange partial compliance, and red full compliance.}
+\label{fig:model_distribution}
+\end{figure}
+
+\textbf{Judge Model.} We use Llama 3.1 70B Instruct as the judge model, which is distinct from the 8B models being evaluated. Prior work on LLM-as-judge has shown strong correlation with human annotations for safety-related tasks~\cite{zheng2023judging}. The three-class rubric (REFUSE, PARTIAL, COMPLY) was designed to capture the spectrum of safety responses, with PARTIAL indicating hedged or caveat-laden responses that neither fully refuse nor fully comply.
+
+\subsection{Sample Size Requirements for Reliable Evaluation}
+
+A key practical question is: how many samples are needed for reliable safety evaluation? We address this by simulating subsampling from our N=20 ground truth. For each prompt, we randomly draw $n$ samples (where $n \in \{1, 2, 3, ..., 20\}$), compute the majority label, and measure agreement with the full-data majority.
+
+Figure~\ref{fig:sample_size} shows that single-shot evaluation (N=1) agrees with the ground truth only 92.4\% [95\% CI: 91.0\%--93.8\%] of the time---meaning approximately 7.6\% of prompts would be misclassified by single-sample testing. Agreement rises to 95\% at N=3 and reaches 99\% only at N=20.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/sample_size_reliability.pdf}
+\caption{Evaluation reliability as a function of sample size. Single-shot testing (N=1) achieves only 92.4\% agreement with ground truth. The 95\% reliability threshold requires N$\geq$3 samples.}
+\label{fig:sample_size}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\caption{Sample size requirements for reliable safety evaluation.}
+\label{tab:sample_size}
+\begin{tabular}{ccc}
+\toprule
+\textbf{N Samples} & \textbf{Agreement (\%)}& \textbf{95\% CI} \\
+\midrule
+1 & 92.4 & [91.0, 93.8] \\
+3 & 95.0 & [93.8, 96.2] \\
+5 & 96.3 & [95.1, 97.3] \\
+10 & 97.8 & [96.7, 98.5] \\
+20 & 99.4 & [99.1, 99.8] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These results suggest that safety benchmarks should use at least 3 samples per prompt for 95\% reliability, with more samples recommended for high-stakes deployment decisions.
 
 \section{Discussion}
 
@@ -183,27 +263,33 @@ Our findings demonstrate that single-shot safety evaluations can significantly m
 
 \textbf{Benchmark Reliability.} Safety benchmarks that report only aggregate pass rates may be highly sensitive to random seed choice. Different evaluators using different random seeds could reach contradictory conclusions about the same model.
 
-\textbf{Deployment Considerations.} For safety-critical applications, using deterministic sampling (temperature 0.0) provides the most stable behavior (mean SSI = 0.96). However, even at temperature 0.0, we observe some instability due to random seed variation.
+\textbf{Deployment Considerations.} For safety-critical applications, using deterministic sampling (temperature 0.0) provides the most stable behavior (mean SSI = 0.987). At this temperature, only 0.9\% of prompts show instability (SSI $<$ 0.8), compared to 16.2\% at temperature 1.0.
 
 \textbf{Adversarial Robustness.} The existence of borderline prompts that flip between refuse and comply suggests that adversaries could exploit stochastic sampling by repeatedly querying the model until they obtain a harmful response.
 
-\subsection{Limitations and Future Work}
+\textbf{Evaluation Protocol Recommendations.} Our sample size analysis provides concrete guidance: single-shot evaluation misclassifies 7.6\% of prompts. For benchmark reliability, we recommend a minimum of N=3 samples per prompt (95\% agreement). For deployment decisions, N=10+ samples provide 98\% reliability. When computational constraints require single-shot evaluation, results should be reported with appropriate uncertainty bounds acknowledging the $\sim$8\% error rate.
 
-This study focuses on Llama 3.1 8B Instruct. Future work should extend this analysis to other model families, sizes, and alignment techniques to determine whether instability is a general phenomenon or specific to certain architectures.
+\subsection{Limitations}
 
-We use the same model as both generator and judge, which could introduce bias. External human evaluation or diverse judge models would provide additional validation.
+\textbf{Model Scale.} While we evaluate two models from different families (Llama and Qwen), both are in the 7-8B parameter range. Larger models (70B, 405B) or closed-source models (GPT-4, Claude) may exhibit different stability characteristics. Future work should extend this analysis across model scales.
 
-Our treatment of PARTIAL responses as a distinct category means that practitioners with different risk tolerances may interpret our results differently. Safety-critical deployments that treat any partial compliance as failure would observe higher effective failure rates than our reported 5.9\% COMPLY rate suggests.
+\textbf{Judge Model.} We use Llama 3.1 70B Instruct as the judge for all models. While this is from the same model family as one of our test models (Llama 8B), it is a distinct, larger model with different capabilities. Cross-validation with an external judge from a different family (e.g., Claude or GPT-4) or human annotation would further strengthen conclusions.
 
-Finally, investigating the linguistic and semantic properties of unstable prompts could reveal what makes certain prompts fall on decision boundaries, potentially informing more robust safety training.
+\textbf{Limited Seed Count.} We test only 5 seeds per temperature. While sufficient to detect instability, more seeds would provide tighter confidence intervals on stability estimates.
+
+\textbf{Dataset Scope.} Our analysis uses BeaverTails prompts. Different prompt distributions (e.g., adversarially-crafted jailbreaks from HarmBench) may exhibit different stability patterns.
+
+\textbf{Binary Stability Threshold.} Our SSI $<$ 0.8 threshold for instability is somewhat arbitrary. Practitioners with different risk tolerances may prefer stricter or more lenient thresholds.
 
 \section{Conclusion}
 
-We have demonstrated that safety refusal decisions in LLMs exhibit significant instability across random seeds and temperature settings, with 32\% of harmful prompts producing inconsistent responses. This finding challenges the validity of single-shot safety evaluations and suggests that current benchmarks may provide misleading assessments of model safety.
+We have demonstrated that safety refusal decisions in LLMs exhibit significant instability across random seeds and temperature settings. Evaluating two instruction-tuned models from different families (Llama and Qwen), we find that while 68\% of prompts produce consistent decisions, 32\% exhibit at least one decision flip, and 14.3\% [95\% CI: 12.0\%--16.6\%] show substantial instability (SSI $<$ 0.8). Temperature significantly affects stability ($p < 0.001$), with instability rates increasing from 0.9\% at temperature 0.0 to 16.2\% at temperature 1.0. Importantly, these patterns are consistent across both model families, suggesting that safety decision instability is a fundamental property of current alignment approaches rather than a model-specific artifact.
 
-We recommend that safety evaluation protocols adopt multi-sample testing and report stability metrics alongside accuracy. For deployment, practitioners should carefully consider temperature settings and potentially implement ensemble voting across multiple samples for high-stakes safety decisions.
+Critically, single-shot evaluation---the standard practice in safety benchmarking---agrees with multi-sample ground truth only 92.4\% of the time. This finding challenges the validity of single-shot safety evaluations and suggests that current benchmarks may provide incomplete assessments of model safety.
 
-The code and data for this study are available at \url{https://github.com/anonymous/safety-refusal-stability}.
+We recommend that safety evaluation protocols: (1) use at least N=3 samples per prompt for 95\% reliability, (2) report stability metrics alongside aggregate pass rates, (3) use lower temperatures for safety-critical deployments, and (4) implement ensemble voting for high-stakes decisions. Future work should explore whether larger models (70B+) or different safety training techniques (DPO, constitutional AI) produce more stable behavior.
+
+The code and data for this study are available at \url{https://github.com/erikl2/safety-refusal-stability}.
 
 \bibliographystyle{plain}
 \bibliography{references}
