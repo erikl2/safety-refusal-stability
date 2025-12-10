@@ -22,6 +22,21 @@ models:
     size: "7B"
     requires_auth: false
 
+  # NEW MODELS for extended evaluation
+  qwen-3-8b:
+    hf_name: "Qwen/Qwen3-8B"
+    short_name: "Qwen3-8B"
+    family: "qwen"
+    size: "8B"
+    requires_auth: false
+
+  gemma-3-12b-it:
+    hf_name: "google/gemma-3-12b-it"
+    short_name: "Gemma3-12B"
+    family: "google"
+    size: "12B"
+    requires_auth: true  # Gemma requires accepting license on HF
+
 # Judge model configuration
 judge:
   hf_name: "meta-llama/Llama-3.1-70B-Instruct"
