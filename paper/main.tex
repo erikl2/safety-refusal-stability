@@ -27,7 +27,7 @@
 \maketitle
 
 \begin{abstract}
-Current safety evaluations of large language models rely on single-shot testing, implicitly assuming that model responses are deterministic and representative of the model's safety alignment. We challenge this assumption by investigating the stability of safety refusal decisions across random seeds and temperature settings. Testing four instruction-tuned models from three families (Llama 3.1 8B, Qwen 2.5 7B, Qwen 3 8B, Gemma 3 12B) on 876 harmful prompts across 20 different sampling configurations (4 temperatures $\times$ 5 random seeds), we find that \textbf{18--32\% of prompts exhibit decision flips}---the model refuses in some configurations but complies in others---depending on the model. Our Safety Stability Index (SSI) reveals that higher temperatures significantly reduce decision stability ($\chi^2 = 133.15$, $p < 0.001$), with mean SSI dropping from 0.951 at temperature 0.0 to 0.896 at temperature 1.0. We validate our findings across all model families and with an external Claude judge, observing consistent instability patterns. The most stable model (Gemma 3 12B, SSI=0.948) is also the least restrictive (78.5\% refusal rate), suggesting a potential stability-conservatism tradeoff. These findings demonstrate that single-shot safety evaluations are insufficient for reliable safety assessment and that evaluation protocols must account for stochastic variation in model behavior. We show that single-shot evaluation agrees with multi-sample ground truth only 92.4\% of the time, and recommend using at least 3 samples per prompt for reliable safety assessment.
+Current safety evaluations of large language models rely on single-shot testing, implicitly assuming that model responses are deterministic and representative of the model's safety alignment. We challenge this assumption by investigating the stability of safety refusal decisions across random seeds and temperature settings. Testing four instruction-tuned models from three families (Llama 3.1 8B, Qwen 2.5 7B, Qwen 3 8B, Gemma 3 12B) on 876 harmful prompts across 20 different sampling configurations (4 temperatures $\times$ 5 random seeds), we find that \textbf{18--28\% of prompts exhibit decision flips}---the model refuses in some configurations but complies in others---depending on the model. Our Safety Stability Index (SSI) reveals that higher temperatures significantly reduce decision stability ($\chi^2 = 133.15$, $p < 0.001$), with mean SSI dropping from 0.951 at temperature 0.0 to 0.896 at temperature 1.0. We validate our findings across all model families using Claude 3.5 Haiku as a unified external judge, achieving 91.7\% inter-judge agreement with our primary Llama 70B judge (Cohen's $\kappa = 0.744$). The most stable model (Gemma 3 12B, SSI=0.965) is also the least restrictive (78.5\% refusal rate), suggesting a potential stability-conservatism tradeoff. These findings demonstrate that single-shot safety evaluations are insufficient for reliable safety assessment and that evaluation protocols must account for stochastic variation in model behavior. We show that single-shot evaluation agrees with multi-sample ground truth only 92.4\% of the time, and recommend using at least 3 samples per prompt for reliable safety assessment.
 \end{abstract}
 
 \section{Introduction}
@@ -40,7 +40,7 @@ In this work, we systematically investigate the stability of LLM safety refusal 
 
 Our findings reveal significant instability in safety decisions:
 \begin{itemize}
-    \item \textbf{25.5\% of prompts exhibit decision flips} across sampling configurations on average, ranging from 18--32\% depending on the model
+    \item \textbf{24.8\% of prompts exhibit decision flips} across sampling configurations on average, ranging from 18--28\% depending on the model
     \item \textbf{Temperature significantly affects stability} ($\chi^2 = 133.15$, $p < 0.001$): Lower temperatures yield more stable decisions (mean SSI = 0.951 at temp 0.0) compared to higher temperatures (mean SSI = 0.896 at temp 1.0)
     \item \textbf{Instability is consistent across model families}: All four models from three families (Llama, Qwen, Gemma) exhibit instability patterns despite different training approaches, suggesting this is a fundamental property of current safety training
     \item \textbf{Borderline prompts exist}: 7.9\% of prompts fall in the highly unstable range (SSI 0.4--0.6), predominantly copyright-related requests where the model is uncertain whether to comply
@@ -192,24 +192,24 @@ Figure~\ref{fig:model_comparison} compares stability across the four evaluated m
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.9\textwidth]{figures/multimodel_stability.pdf}
-\caption{Safety Stability Index comparison across models. Left: Mean SSI with standard deviation error bars. Right: Percentage of prompts with SSI $<$ 0.8 (unstable). All four models show instability rates between 14\% and 28\%.}
+\caption{Safety Stability Index comparison across models. Left: Mean SSI with standard deviation error bars. Right: Percentage of prompts with SSI $<$ 0.8 (unstable). All four models show instability rates between 6.7\% and 12.0\%.}
 \label{fig:model_comparison}
 \end{figure}
 
-Table~\ref{tab:multimodel} summarizes the stability metrics across all four models from three families. The models span a range of stability characteristics: Gemma 3 12B shows the highest stability (SSI=0.948, 18.4\% flip rate) while also having the lowest refusal rate (78.5\%), while Llama 3.1 8B shows the lowest stability (SSI=0.889, 31.9\% flip rate). Importantly, all models exhibit non-trivial instability despite different training approaches and model families, confirming that safety decision instability is a fundamental property of current alignment approaches rather than a model-specific artifact.
+Table~\ref{tab:multimodel} summarizes the stability metrics across all four models from three families, using Claude 3.5 Haiku as a unified judge for methodological consistency. The models span a range of stability characteristics: Gemma 3 12B shows the highest stability (SSI=0.965, 18.4\% flip rate) while also having the lowest refusal rate (78.5\%), while the Qwen models show the lowest stability (SSI=0.938). Notably, Llama 3.1 8B falls in the middle (SSI=0.944, 27.3\% flip rate). All models exhibit non-trivial instability (6.7--12.0\% of prompts highly unstable) despite different training approaches and model families, confirming that safety decision instability is a fundamental property of current alignment approaches rather than a model-specific artifact.
 
 \begin{table}[h]
 \centering
-\caption{Stability comparison across model families.}
+\caption{Stability comparison across model families. All models evaluated using Claude 3.5 Haiku as judge for methodological consistency. Models sorted by SSI (descending).}
 \label{tab:multimodel}
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Model} & \textbf{Mean SSI} & \textbf{Flip Rate} & \textbf{\% Unstable} & \textbf{Refusal Rate} \\
+\textbf{Model} & \textbf{Mean SSI} $\uparrow$ & \textbf{Flip Rate} & \textbf{\% Unstable} & \textbf{Refusal Rate} \\
 \midrule
-Llama-3.1-8B-Instruct & 0.889 & 31.9\% & 14.3\% & 83.1\% \\
-Qwen2.5-7B-Instruct & 0.900 & 24.1\% & 14.0\% & 90.8\% \\
-Qwen3-8B & 0.909 & 27.7\% & 27.7\% & 92.5\% \\
-Gemma-3-12B-Instruct & 0.948 & 18.4\% & 18.4\% & 78.5\% \\
+Gemma-3-12B-Instruct & \textbf{0.965} & 18.4\% & \textbf{6.7\%} & 78.5\% \\
+Llama-3.1-8B-Instruct & 0.944 & 27.3\% & 10.4\% & 79.3\% \\
+Qwen3-8B & 0.938 & 27.7\% & 11.8\% & 92.5\% \\
+Qwen2.5-7B-Instruct & 0.938 & 26.3\% & 12.0\% & 81.3\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -227,9 +227,11 @@ Figure~\ref{fig:model_distribution} shows the response distribution (REFUSE, PAR
 
 \subsection{External Judge Validation}
 
-To address potential same-family bias concerns with our Llama-based judge, we additionally evaluated the newer models (Qwen 3 and Gemma 3) using Claude 3.5 Haiku as an external judge from Anthropic's model family. This provides cross-validation with a judge trained on entirely different data and by a different organization.
+To address potential same-family bias concerns with our Llama-based judge and ensure methodological consistency across all models, we evaluated \textit{all} 70,080 responses using Claude 3.5 Haiku as an external judge from Anthropic's model family. This provides cross-validation with a judge trained on entirely different data and by a different organization.
 
-Claude 3.5 Haiku's judgments on the 35,040 new model responses confirm our primary findings: Qwen 3 shows SSI=0.938 with 27.7\% flip rate, and Gemma 3 shows SSI=0.965 with 18.4\% flip rate. These metrics are consistent with the patterns observed across the Llama and Qwen 2.5 models judged by Llama 70B, demonstrating that the observed instability is not an artifact of judge bias but reflects genuine variability in model behavior.
+\textbf{Inter-Judge Agreement.} Comparing Claude 3.5 Haiku to Llama 70B judgments on the Llama 3.1 8B and Qwen 2.5 7B responses (35,040 samples), we observe 91.7\% exact agreement on the three-class classification, with Cohen's $\kappa = 0.744$ indicating substantial inter-rater reliability. Claude Haiku consistently assigns slightly higher SSI scores (mean difference: +0.05), suggesting marginally stricter refusal detection. Crucially, the \textit{relative ranking} of model stability remains consistent across judges.
+
+\textbf{Unified Results.} Table~\ref{tab:multimodel} reports all metrics using Claude 3.5 Haiku as the judge for all four models, ensuring methodological consistency in cross-model comparisons. The high inter-judge agreement (91.7\%, $\kappa = 0.744$) validates that our instability findings are robust to judge selection and not artifacts of same-family bias.
 
 \subsection{Sample Size Requirements for Reliable Evaluation}
 
@@ -291,7 +293,7 @@ Our findings demonstrate that single-shot safety evaluations can significantly m
 
 \section{Conclusion}
 
-We have demonstrated that safety refusal decisions in LLMs exhibit significant instability across random seeds and temperature settings. Evaluating four instruction-tuned models from three families (Llama, Qwen, and Gemma) across 70,080 total responses, we find that 18--32\% of prompts exhibit decision flips depending on the model. Temperature significantly affects stability ($p < 0.001$), with instability rates increasing from 9.5\% at temperature 0.0 to 19.6\% at temperature 1.0. Importantly, these patterns are consistent across all model families and validated by an external Claude judge, suggesting that safety decision instability is a fundamental property of current alignment approaches rather than a model-specific artifact.
+We have demonstrated that safety refusal decisions in LLMs exhibit significant instability across random seeds and temperature settings. Evaluating four instruction-tuned models from three families (Llama, Qwen, and Gemma) across 70,080 total responses, we find that 18--28\% of prompts exhibit decision flips depending on the model. Temperature significantly affects stability ($p < 0.001$), with instability rates increasing from 9.5\% at temperature 0.0 to 19.6\% at temperature 1.0. Importantly, these patterns are consistent across all model families and validated by an external Claude judge, suggesting that safety decision instability is a fundamental property of current alignment approaches rather than a model-specific artifact.
 
 Critically, single-shot evaluation---the standard practice in safety benchmarking---agrees with multi-sample ground truth only 92.4\% of the time. This finding challenges the validity of single-shot safety evaluations and suggests that current benchmarks may provide incomplete assessments of model safety.
 

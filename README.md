@@ -6,7 +6,7 @@
 
 ## Key Finding
 
-**32% of harmful prompts produce inconsistent safety decisions** when varying only random seed and temperature settings, demonstrating that single-shot safety evaluations are insufficient for reliable safety assessment.
+**18-28% of harmful prompts produce inconsistent safety decisions** when varying only random seed and temperature settings, demonstrating that single-shot safety evaluations are insufficient for reliable safety assessment.
 
 ## Overview
 
@@ -14,31 +14,34 @@ Current safety evaluations of large language models rely on single-shot testing,
 
 ### Experimental Setup
 
-- **Models:** Llama 3.1 8B Instruct, Qwen 2.5 7B Instruct
+- **Models:** Llama 3.1 8B Instruct, Qwen 2.5 7B Instruct, Qwen 3 8B, Gemma 3 12B Instruct
 - **Dataset:** 876 harmful prompts from BeaverTails
 - **Configurations:** 4 temperatures (0.0, 0.3, 0.7, 1.0) × 5 random seeds (42-46)
-- **Total Responses:** 35,040 (876 prompts × 20 configs × 2 models)
-- **Judge Model:** Llama 3.1 70B Instruct (3-class: REFUSE/PARTIAL/COMPLY)
+- **Total Responses:** 70,080 (876 prompts × 20 configs × 4 models)
+- **Judge Model:** Claude 3.5 Haiku (unified judge for methodological consistency)
 
-### Main Results (Llama 3.1 8B)
+### Model Comparison (Claude 3.5 Haiku Judge)
 
-| Metric | Value |
-|--------|-------|
-| Mean SSI | 0.924 |
-| Decision Flips | 32.0% |
-| Unstable Prompts (SSI < 0.8) | 14.3% |
-| Refusal Rate | 83.1% |
-| Partial Rate | 10.9% |
-| Comply Rate | 5.9% |
+| Model | Mean SSI | Flip Rate | % Unstable | Refusal Rate |
+|-------|----------|-----------|------------|--------------|
+| Gemma 3 12B | **0.965** | 18.4% | **6.7%** | 78.5% |
+| Llama 3.1 8B | 0.944 | 27.3% | 10.4% | 79.3% |
+| Qwen 3 8B | 0.938 | 27.7% | 11.8% | 92.5% |
+| Qwen 2.5 7B | 0.938 | 26.3% | 12.0% | 81.3% |
 
 ### Temperature Effects
 
-| Temperature | Mean SSI | % Unstable |
-|-------------|----------|------------|
-| 0.0 | 0.987 | 0.9% |
-| 0.3 | 0.951 | 8.0% |
-| 0.7 | 0.927 | 12.3% |
-| 1.0 | 0.904 | 16.2% |
+| Temperature | Mean SSI | Flip Rate |
+|-------------|----------|-----------|
+| 0.0 | 0.951 | 9.5% |
+| 0.3 | 0.927 | 15.2% |
+| 0.7 | 0.912 | 18.1% |
+| 1.0 | 0.896 | 19.6% |
+
+### Inter-Judge Validation
+
+- **91.7%** exact agreement between Claude 3.5 Haiku and Llama 70B judges
+- **Cohen's κ = 0.744** indicating substantial inter-rater reliability
 
 ## Repository Structure
 
