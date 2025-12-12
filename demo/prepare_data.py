@@ -2,6 +2,7 @@
 Script to prepare demo data from experiment results.
 
 Extracts a curated subset of prompts for the Safety Stability Explorer demo.
+Supports multiple models with Claude 3.5 Haiku judge labels.
 """
 
 import json
@@ -12,33 +13,114 @@ from collections import defaultdict
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
 LABELS_DIR = PROJECT_ROOT / "data" / "results" / "labels"
-METRICS_FILE = PROJECT_ROOT / "data" / "results" / "metrics" / "per_prompt_metrics.csv"
+RESPONSES_DIR = PROJECT_ROOT / "data" / "results" / "responses"
+GENERATIONS_DIR = PROJECT_ROOT / "data" / "results" / "generations"
 PROMPTS_FILE = PROJECT_ROOT / "data" / "processed" / "prompts.csv"
 OUTPUT_FILE = Path(__file__).parent / "data" / "prompts.json"
 
 # Config
 TEMPS = [0.0, 0.3, 0.7, 1.0]
 SEEDS = [42, 43, 44, 45, 46]
-MODEL_PREFIX = "meta_llama_Llama_3.1_8B_Instruct"
+
+# Model configurations - mapping internal ID to display name and label file model name
+MODELS = {
+    "meta_llama_Llama_3.1_8B_Instruct": {
+        "display_name": "Llama 3.1 8B",
+        "label_model_name": "meta-llama/Llama-3.1-8B-Instruct",
+        "generation_prefix": "meta_llama_Llama_3.1_8B_Instruct",
+    },
+    "Qwen_Qwen2.5_7B_Instruct": {
+        "display_name": "Qwen 2.5 7B",
+        "label_model_name": "Qwen_Qwen2.5_7B_Instruct",
+        "generation_prefix": "Qwen_Qwen2.5_7B_Instruct",
+    },
+    "Qwen_Qwen3_8B": {
+        "display_name": "Qwen 3 8B",
+        "label_model_name": "Qwen_Qwen3-8B",
+        "generation_prefix": "Qwen_Qwen3-8B",
+    },
+    "google_gemma_3_12b_it": {
+        "display_name": "Gemma 3 12B",
+        "label_model_name": "google_gemma-3-12b-it",
+        "generation_prefix": "google_gemma-3-12b-it",
+    },
+}
+
+# Model stats from the unified judge (Claude 3.5 Haiku)
+MODEL_STATS = {
+    "meta_llama_Llama_3.1_8B_Instruct": {"mean_ssi": 0.944, "flip_rate": 27.3, "pct_unstable": 10.4, "refusal_rate": 79.3},
+    "Qwen_Qwen2.5_7B_Instruct": {"mean_ssi": 0.938, "flip_rate": 26.3, "pct_unstable": 12.0, "refusal_rate": 81.3},
+    "Qwen_Qwen3_8B": {"mean_ssi": 0.938, "flip_rate": 27.7, "pct_unstable": 11.8, "refusal_rate": 92.5},
+    "google_gemma_3_12b_it": {"mean_ssi": 0.965, "flip_rate": 18.4, "pct_unstable": 6.7, "refusal_rate": 78.5},
+}
 
 
-def load_all_labels():
-    """Load all Llama labels into a single DataFrame."""
+def load_labels():
+    """Load all Claude Haiku labels from both label files."""
     dfs = []
-    for temp in TEMPS:
-        for seed in SEEDS:
-            filename = f"{MODEL_PREFIX}_temp{temp}_seed{seed}_labels.csv"
-            filepath = LABELS_DIR / filename
-            if filepath.exists():
-                df = pd.read_csv(filepath)
-                dfs.append(df)
-            else:
-                print(f"Warning: {filepath} not found")
+
+    # Load Llama and Qwen 2.5 labels
+    llama_qwen25_file = LABELS_DIR / "claude_haiku_llama_qwen25.csv"
+    if llama_qwen25_file.exists():
+        df = pd.read_csv(llama_qwen25_file)
+        dfs.append(df)
+        print(f"Loaded {len(df)} labels from {llama_qwen25_file.name}")
+
+    # Load Qwen 3 and Gemma 3 labels
+    new_models_file = LABELS_DIR / "claude_haiku_new_models.csv"
+    if new_models_file.exists():
+        df = pd.read_csv(new_models_file)
+        dfs.append(df)
+        print(f"Loaded {len(df)} labels from {new_models_file.name}")
 
     if not dfs:
         raise FileNotFoundError("No label files found")
 
     return pd.concat(dfs, ignore_index=True)
+
+
+def load_responses():
+    """Load all responses from JSONL files."""
+    responses = []
+
+    # Try loading from JSONL files first
+    llama_qwen25_file = RESPONSES_DIR / "llama_qwen25_responses.jsonl"
+    if llama_qwen25_file.exists():
+        with open(llama_qwen25_file) as f:
+            for line in f:
+                responses.append(json.loads(line))
+        print(f"Loaded {len(responses)} responses from {llama_qwen25_file.name}")
+
+    new_models_file = RESPONSES_DIR / "new_models_responses.jsonl"
+    if new_models_file.exists():
+        count_before = len(responses)
+        with open(new_models_file) as f:
+            for line in f:
+                responses.append(json.loads(line))
+        print(f"Loaded {len(responses) - count_before} responses from {new_models_file.name}")
+
+    # Fall back to individual generation CSVs
+    if not responses:
+        for model_id, model_config in MODELS.items():
+            prefix = model_config["generation_prefix"]
+            for temp in TEMPS:
+                for seed in SEEDS:
+                    filename = f"{prefix}_temp{temp}_seed{seed}.csv"
+                    filepath = GENERATIONS_DIR / filename
+                    if filepath.exists():
+                        df = pd.read_csv(filepath)
+                        for _, row in df.iterrows():
+                            responses.append({
+                                "model": model_config["label_model_name"],
+                                "prompt_id": row["prompt_id"],
+                                "prompt": row["prompt"],
+                                "response": row["response"],
+                                "temperature": temp,
+                                "seed": seed,
+                            })
+        print(f"Loaded {len(responses)} responses from generation CSVs")
+
+    return responses
 
 
 def categorize_prompt(prompt_text):
@@ -65,132 +147,206 @@ def categorize_prompt(prompt_text):
     return "other"
 
 
-def select_prompts(metrics_df, labels_df, num_prompts=40):
+def compute_ssi(labels):
+    """Compute Safety Stability Index for a list of labels."""
+    if not labels:
+        return 1.0
+    label_counts = defaultdict(int)
+    for label in labels:
+        label_counts[label] += 1
+    return max(label_counts.values()) / len(labels)
+
+
+def select_prompts(labels_df, responses, num_per_category=10):
     """
-    Select a curated subset of prompts.
+    Select a curated subset of prompts that shows interesting stability patterns.
 
     Selection criteria:
-    - 10-15 stable refusers (SSI > 0.95, mostly REFUSE)
-    - 10-15 unstable borderline (SSI 0.4-0.7, mixed decisions)
-    - 5-10 stable compliers (SSI > 0.95, mostly COMPLY or PARTIAL)
-    - 5-10 interesting edge cases (SSI 0.7-0.9)
-
-    Also filter for readability (not too long).
+    - Include prompts with varying stability levels
+    - Prioritize prompts that show different behavior across models
+    - Keep prompts short enough for display
     """
-    # Filter for Llama model prompts (20 samples each)
-    llama_metrics = metrics_df[metrics_df["num_samples"] == 20].copy()
+    # Build a lookup for responses by (model, prompt_id, temp, seed)
+    response_lookup = {}
+    prompt_texts = {}
+    for r in responses:
+        key = (r["model"], r["prompt_id"], r["temperature"], r["seed"])
+        response_lookup[key] = r["response"]
+        prompt_texts[r["prompt_id"]] = r["prompt"]
 
-    # Filter for reasonable length prompts
-    llama_metrics["prompt_length"] = llama_metrics["prompt"].str.len()
-    llama_metrics = llama_metrics[llama_metrics["prompt_length"] < 200]
+    # Group labels by prompt_id and model
+    grouped = labels_df.groupby(["prompt_id", "model"])["label"].apply(list).reset_index()
 
-    selected = []
+    # Compute SSI per prompt per model
+    prompt_model_ssi = {}
+    for _, row in grouped.iterrows():
+        prompt_id = row["prompt_id"]
+        model = row["model"]
+        labels = row["label"]
+        ssi = compute_ssi(labels)
 
-    # 1. Stable refusers (SSI > 0.95, majority REFUSE)
-    stable_refuse = llama_metrics[
-        (llama_metrics["stability_index"] > 0.95) &
-        (llama_metrics["majority_label"] == "REFUSE")
-    ].sample(n=min(12, len(llama_metrics[(llama_metrics["stability_index"] > 0.95) & (llama_metrics["majority_label"] == "REFUSE")])), random_state=42)
-    selected.append(stable_refuse)
-    print(f"Selected {len(stable_refuse)} stable refusers")
+        if prompt_id not in prompt_model_ssi:
+            prompt_model_ssi[prompt_id] = {}
+        prompt_model_ssi[prompt_id][model] = ssi
 
-    # 2. Unstable borderline (SSI 0.3-0.7)
-    unstable = llama_metrics[
-        (llama_metrics["stability_index"] >= 0.1) &
-        (llama_metrics["stability_index"] <= 0.7) &
-        (llama_metrics["flip_occurred"] == True)
-    ].sample(n=min(15, len(llama_metrics[(llama_metrics["stability_index"] >= 0.1) & (llama_metrics["stability_index"] <= 0.7)])), random_state=42)
-    selected.append(unstable)
-    print(f"Selected {len(unstable)} unstable prompts")
+    # Select prompts with interesting patterns
+    selected_prompt_ids = set()
 
-    # 3. Stable compliers (SSI > 0.9, majority COMPLY or high comply rate)
-    stable_comply = llama_metrics[
-        (llama_metrics["stability_index"] > 0.5) &
-        (llama_metrics["comply_rate"] > 0.3)
-    ].sample(n=min(8, len(llama_metrics[(llama_metrics["stability_index"] > 0.5) & (llama_metrics["comply_rate"] > 0.3)])), random_state=42)
-    selected.append(stable_comply)
-    print(f"Selected {len(stable_comply)} stable compliers / high comply rate")
+    # 1. Most unstable prompts (lowest mean SSI across models)
+    prompt_mean_ssi = []
+    for prompt_id, model_ssis in prompt_model_ssi.items():
+        if len(model_ssis) >= 2:  # At least 2 models have data
+            mean_ssi = sum(model_ssis.values()) / len(model_ssis)
+            prompt_text = prompt_texts.get(prompt_id, "")
+            if len(prompt_text) < 200:  # Short enough to display
+                prompt_mean_ssi.append((prompt_id, mean_ssi))
 
-    # 4. Edge cases (SSI 0.7-0.95, flip occurred)
-    edge_cases = llama_metrics[
-        (llama_metrics["stability_index"] > 0.7) &
-        (llama_metrics["stability_index"] <= 0.95) &
-        (llama_metrics["flip_occurred"] == True)
-    ].sample(n=min(8, len(llama_metrics[(llama_metrics["stability_index"] > 0.7) & (llama_metrics["stability_index"] <= 0.95)])), random_state=42)
-    selected.append(edge_cases)
-    print(f"Selected {len(edge_cases)} edge cases")
+    prompt_mean_ssi.sort(key=lambda x: x[1])
 
-    # Combine and deduplicate
-    selected_df = pd.concat(selected).drop_duplicates(subset=["prompt_id"])
-    print(f"\nTotal selected: {len(selected_df)} prompts")
+    # Get most unstable
+    for prompt_id, _ in prompt_mean_ssi[:15]:
+        selected_prompt_ids.add(prompt_id)
 
-    return selected_df
+    # 2. Stable refusers (high SSI)
+    for prompt_id, _ in prompt_mean_ssi[-10:]:
+        selected_prompt_ids.add(prompt_id)
+
+    # 3. Prompts with high model variance (different models behave differently)
+    prompt_ssi_variance = []
+    for prompt_id, model_ssis in prompt_model_ssi.items():
+        if len(model_ssis) >= 3:  # At least 3 models
+            values = list(model_ssis.values())
+            variance = max(values) - min(values)
+            prompt_text = prompt_texts.get(prompt_id, "")
+            if len(prompt_text) < 200:
+                prompt_ssi_variance.append((prompt_id, variance))
+
+    prompt_ssi_variance.sort(key=lambda x: -x[1])
+    for prompt_id, _ in prompt_ssi_variance[:10]:
+        selected_prompt_ids.add(prompt_id)
+
+    # 4. Edge cases (SSI around 0.7-0.9)
+    for prompt_id, mean_ssi in prompt_mean_ssi:
+        if 0.65 <= mean_ssi <= 0.85:
+            selected_prompt_ids.add(prompt_id)
+            if len(selected_prompt_ids) >= 40:
+                break
+
+    print(f"Selected {len(selected_prompt_ids)} prompts")
+    return selected_prompt_ids
 
 
-def build_prompt_data(prompt_id, prompt_text, ssi, labels_df):
-    """Build the response data for a single prompt."""
-    prompt_labels = labels_df[labels_df["prompt_id"] == prompt_id]
+def build_prompt_data(prompt_id, prompt_text, labels_df, response_lookup):
+    """Build the multi-model response data for a single prompt."""
+    models_data = {}
 
-    responses = []
-    for temp in TEMPS:
-        for seed in SEEDS:
-            row = prompt_labels[
-                (prompt_labels["temperature"] == temp) &
-                (prompt_labels["seed"] == seed)
-            ]
-            if len(row) > 0:
-                row = row.iloc[0]
-                responses.append({
-                    "temp": temp,
-                    "seed": seed,
-                    "label": row["label"],
-                    "text": row["response"][:1000] if pd.notna(row["response"]) else ""  # Truncate long responses
-                })
+    for model_id, model_config in MODELS.items():
+        label_model_name = model_config["label_model_name"]
+
+        # Get labels for this model and prompt
+        model_labels = labels_df[
+            (labels_df["prompt_id"] == prompt_id) &
+            (labels_df["model"] == label_model_name)
+        ]
+
+        if len(model_labels) == 0:
+            continue
+
+        responses = []
+        labels_list = []
+
+        for temp in TEMPS:
+            for seed in SEEDS:
+                row = model_labels[
+                    (model_labels["temperature"] == temp) &
+                    (model_labels["seed"] == seed)
+                ]
+                if len(row) > 0:
+                    label = row.iloc[0]["label"]
+                    labels_list.append(label)
+
+                    # Get response text
+                    response_key = (label_model_name, prompt_id, temp, seed)
+                    response_text = response_lookup.get(response_key, "")
+                    if response_text:
+                        response_text = response_text[:1000]  # Truncate long responses
+
+                    responses.append({
+                        "temp": temp,
+                        "seed": seed,
+                        "label": label,
+                        "text": response_text,
+                    })
+
+        if len(responses) >= 15:  # At least 15/20 responses present
+            ssi = compute_ssi(labels_list)
+            models_data[model_id] = {
+                "ssi": round(ssi, 3),
+                "responses": responses,
+            }
+
+    if not models_data:
+        return None
 
     return {
         "id": prompt_id,
         "text": prompt_text,
         "category": categorize_prompt(prompt_text),
-        "ssi": round(ssi, 3),
-        "responses": responses
+        "models": models_data,
     }
 
 
 def main():
     print("Loading data...")
-    metrics_df = pd.read_csv(METRICS_FILE)
-    labels_df = load_all_labels()
+    labels_df = load_labels()
+    responses = load_responses()
 
-    print(f"Loaded {len(metrics_df)} prompts with metrics")
-    print(f"Loaded {len(labels_df)} labeled responses")
+    print(f"\nTotal labels: {len(labels_df)}")
+    print(f"Total responses: {len(responses)}")
+
+    # Build response lookup
+    response_lookup = {}
+    prompt_texts = {}
+    for r in responses:
+        key = (r["model"], r["prompt_id"], r["temperature"], r["seed"])
+        response_lookup[key] = r["response"]
+        prompt_texts[r["prompt_id"]] = r["prompt"]
 
     print("\nSelecting prompts...")
-    selected = select_prompts(metrics_df, labels_df)
+    selected_ids = select_prompts(labels_df, responses)
 
     print("\nBuilding demo data...")
     prompts = []
-    for _, row in selected.iterrows():
-        prompt_data = build_prompt_data(
-            row["prompt_id"],
-            row["prompt"],
-            row["stability_index"],
-            labels_df
-        )
-        if len(prompt_data["responses"]) == 20:  # Only include complete data
+    for prompt_id in selected_ids:
+        prompt_text = prompt_texts.get(prompt_id, "")
+        if not prompt_text:
+            continue
+
+        prompt_data = build_prompt_data(prompt_id, prompt_text, labels_df, response_lookup)
+        if prompt_data and len(prompt_data["models"]) >= 2:  # At least 2 models
             prompts.append(prompt_data)
 
-    # Sort by SSI ascending (most unstable first)
-    prompts.sort(key=lambda x: x["ssi"])
+    # Sort by average SSI (most unstable first)
+    def avg_ssi(p):
+        ssis = [m["ssi"] for m in p["models"].values()]
+        return sum(ssis) / len(ssis) if ssis else 1.0
+
+    prompts.sort(key=avg_ssi)
+
+    print(f"\nFinal prompt count: {len(prompts)}")
 
     # Build output
     output = {
         "prompts": prompts,
         "metadata": {
-            "model": "Llama-3.1-8B-Instruct",
+            "models": list(MODELS.keys()),
             "temps": TEMPS,
             "seeds": SEEDS,
-            "total_prompts": len(metrics_df),
-            "subset_description": "Curated subset showing range of stability scores"
+            "total_prompts": 876,
+            "total_responses": 70080,
+            "judge": "Claude 3.5 Haiku",
+            "model_stats": MODEL_STATS,
+            "subset_description": "Curated subset showing range of stability scores across 4 models"
         }
     }
 
@@ -203,10 +359,11 @@ def main():
 
     # Print summary
     print("\nSSI distribution in selected prompts:")
-    ssi_values = [p["ssi"] for p in prompts]
-    print(f"  Min: {min(ssi_values):.3f}")
-    print(f"  Max: {max(ssi_values):.3f}")
-    print(f"  Mean: {sum(ssi_values)/len(ssi_values):.3f}")
+    ssi_values = [avg_ssi(p) for p in prompts]
+    if ssi_values:
+        print(f"  Min: {min(ssi_values):.3f}")
+        print(f"  Max: {max(ssi_values):.3f}")
+        print(f"  Mean: {sum(ssi_values)/len(ssi_values):.3f}")
 
     print("\nCategory distribution:")
     categories = defaultdict(int)
@@ -214,6 +371,13 @@ def main():
         categories[p["category"]] += 1
     for cat, count in sorted(categories.items(), key=lambda x: -x[1]):
         print(f"  {cat}: {count}")
+
+    print("\nModels per prompt:")
+    model_counts = defaultdict(int)
+    for p in prompts:
+        model_counts[len(p["models"])] += 1
+    for n_models, count in sorted(model_counts.items()):
+        print(f"  {n_models} models: {count} prompts")
 
 
 if __name__ == "__main__":
