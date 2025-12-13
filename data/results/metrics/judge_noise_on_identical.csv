@@ -1,0 +1,4 @@
+model,identical_response_prompts,label_flips_on_identical,judge_noise_rate
+Qwen_Qwen2.5_7B_Instruct,154,12,7.792207792207792
+mistralai_Mistral_7B_Instruct_v0.3,177,88,49.717514124293785
+meta_llama_Llama_3.1_8B_Instruct,643,1,0.15552099533437014

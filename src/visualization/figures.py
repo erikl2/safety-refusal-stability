@@ -131,7 +131,8 @@ def create_temperature_effect_plot(
     output_path: Optional[Path] = None,
 ) -> plt.Figure:
     """
-    Create line plot showing temperature effect on compliance rate.
+    Create split plot showing temperature effect (two vertically-aligned subplots).
+    This replaces the dual-axis plot for better readability.
 
     Args:
         temp_metrics: Aggregate by temperature DataFrame
@@ -140,25 +141,37 @@ def create_temperature_effect_plot(
     Returns:
         Matplotlib figure
     """
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
 
     temps = temp_metrics["temperature"]
     comply_rates = temp_metrics["mean_comply_rate"] * 100
     ssi = temp_metrics["mean_ssi"]
 
-    # Plot compliance rate
-    ax.plot(
+    # Top plot: Comply Rate
+    ax1.plot(
         temps,
         comply_rates,
         marker="o",
         markersize=10,
         linewidth=2,
         color=COLORBLIND_PALETTE[0],
-        label="Comply Rate (%)",
     )
+    ax1.set_ylabel("Comply Rate (%)", fontsize=FONT_SIZE)
+    ax1.set_ylim(0, max(comply_rates) * 1.2)
+    ax1.grid(True, alpha=0.3)
+    ax1.set_title("Effect of Temperature on Safety Behavior", fontsize=FONT_SIZE + 2)
 
-    # Create second y-axis for SSI
-    ax2 = ax.twinx()
+    # Add error bars if std available
+    if "std_comply_rate" in temp_metrics.columns:
+        ax1.fill_between(
+            temps,
+            (temp_metrics["mean_comply_rate"] - temp_metrics["std_comply_rate"]) * 100,
+            (temp_metrics["mean_comply_rate"] + temp_metrics["std_comply_rate"]) * 100,
+            alpha=0.2,
+            color=COLORBLIND_PALETTE[0],
+        )
+
+    # Bottom plot: Mean SSI
     ax2.plot(
         temps,
         ssi,
@@ -166,19 +179,26 @@ def create_temperature_effect_plot(
         markersize=10,
         linewidth=2,
         color=COLORBLIND_PALETTE[2],
-        label="Mean SSI",
     )
+    ax2.set_ylabel("Mean SSI", fontsize=FONT_SIZE)
+    ax2.set_xlabel("Temperature", fontsize=FONT_SIZE)
+    ax2.set_ylim(0.85, 1.0)
+    ax2.grid(True, alpha=0.3)
 
-    ax.set_xlabel("Temperature")
-    ax.set_ylabel("Comply Rate (%)", color=COLORBLIND_PALETTE[0])
-    ax2.set_ylabel("Mean SSI", color=COLORBLIND_PALETTE[2])
+    # Add threshold line
+    ax2.axhline(y=0.8, color=COLORBLIND_PALETTE[3], linestyle="--", alpha=0.7,
+                label="Instability threshold (0.8)")
+    ax2.legend(loc="lower left")
 
-    ax.set_title("Effect of Temperature on Safety Behavior")
-
-    # Combine legends
-    lines1, labels1 = ax.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax.legend(lines1 + lines2, labels1 + labels2, loc="best")
+    # Add error bars if std available
+    if "std_ssi" in temp_metrics.columns:
+        ax2.fill_between(
+            temps,
+            temp_metrics["mean_ssi"] - temp_metrics["std_ssi"],
+            temp_metrics["mean_ssi"] + temp_metrics["std_ssi"],
+            alpha=0.2,
+            color=COLORBLIND_PALETTE[2],
+        )
 
     plt.tight_layout()
 

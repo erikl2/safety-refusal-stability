@@ -1,0 +1,4 @@
+model,total_prompts,exact_match_count,exact_match_rate,near_match_count,variation_count,variation_rate,label_flips_on_identical
+Qwen_Qwen2.5_7B_Instruct,876,154,17.579908675799086,0,722,82.42009132420091,12
+mistralai_Mistral_7B_Instruct_v0.3,876,177,20.205479452054796,0,699,79.7945205479452,97
+meta_llama_Llama_3.1_8B_Instruct,876,643,73.40182648401826,0,233,26.59817351598174,1

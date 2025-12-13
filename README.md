@@ -20,6 +20,27 @@ Current safety evaluations of large language models rely on single-shot testing,
 - **Total Responses:** 70,080 (876 prompts × 20 configs × 4 models)
 - **Judge Model:** Claude 3.5 Haiku (unified judge for methodological consistency)
 
+### Dataset Details
+
+We use 876 harmful prompts from the BeaverTails dataset [Ji et al., 2023]:
+
+- **Source:** `PKU-Alignment/BeaverTails` on Hugging Face
+- **Split:** `330k_train` split, filtered to `is_safe=False`
+- **Selection:** First 876 unique prompts after deduplication
+- **Categories:** Copyright (12.8%), Hacking (13.5%), Violence (9.0%), Illegal Activity (7.5%), Fraud (5.8%), Weapons (5.7%), Drugs (4.3%), Misinformation (3.4%), Self-harm (1.7%), Hate Speech (1.5%), Privacy (1.4%), Other (33.3%)
+
+### Inference Configuration
+
+| Parameter | Value |
+|-----------|-------|
+| Inference Engine | vLLM 0.6.3 |
+| Temperatures | 0.0, 0.3, 0.7, 1.0 |
+| Random Seeds | 42, 43, 44, 45, 46 |
+| Top-p | 1.0 (disabled) |
+| Top-k | -1 (disabled) |
+| Max Output Tokens | 512 |
+| GPU | NVIDIA A100-80GB |
+
 ### Model Comparison (Claude 3.5 Haiku Judge)
 
 | Model | Mean SSI | Flip Rate | % Unstable | Refusal Rate |
@@ -40,8 +61,8 @@ Current safety evaluations of large language models rely on single-shot testing,
 
 ### Inter-Judge Validation
 
-- **91.7%** exact agreement between Claude 3.5 Haiku and Llama 70B judges
-- **Cohen's κ = 0.744** indicating substantial inter-rater reliability
+- **89.0%** exact agreement between Claude 3.5 Haiku and Llama 70B judges
+- **Cohen's κ = 0.62** indicating substantial inter-rater reliability
 
 ## Repository Structure
 
