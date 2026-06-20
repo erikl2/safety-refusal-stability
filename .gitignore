@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data files (large)
+*.csv.gz
+*.parquet
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Model checkpoints (too large)
+checkpoints/
+models/
+
+# Lambda credentials
+lambda-ssh-key.pem
+
+# AI coding artifacts (internal planning docs)
+artifact2_*.md
+
+# Generated experiment artifacts
+data/results/batch_jobs/
+data/results/responses/
+paper/arxiv_submission.zip
+
+# Data — never commit. Harmful prompts (raw/, processed/) and raw model completions
+# (results/labels/*.csv carry prompt+response columns) live here; everything is fetched
+# (datasets, via scripts/01_download_data.py) or regenerated (results) at setup. Only the
+# pointer doc is tracked.
+data/*
+!data/README.md
+
+# Pilot artifact bundle (bloat; regenerable)
+artifact2_pilot_results.tar.gz

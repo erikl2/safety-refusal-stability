@@ -1,0 +1,36 @@
+# Sampling configuration for safety refusal stability experiments
+
+# Temperature values to test
+# 0.0 = greedy decoding (deterministic)
+# Higher values = more randomness
+temperatures:
+  - 0.0
+  - 0.3
+  - 0.7
+  - 1.0
+
+# Random seeds for reproducibility
+# 5 seeds × 4 temperatures = 20 configurations per model
+seeds:
+  - 42
+  - 43
+  - 44
+  - 45
+  - 46
+
+# Generation parameters
+generation:
+  max_new_tokens: 512
+  top_p: 1.0
+  top_k: -1  # disabled
+  repetition_penalty: 1.0
+
+# Batch settings
+batch:
+  size: 32  # prompts per batch (adjust based on GPU memory)
+
+# Pilot experiment settings
+pilot:
+  num_prompts: 50
+  temperatures: [0.7]
+  seeds: [42, 43]
