@@ -27,7 +27,7 @@
 \maketitle
 
 \begin{abstract}
-Current safety evaluations of large language models rely on single-shot testing, implicitly assuming that model responses are deterministic and representative of the model's safety alignment. We challenge this assumption by investigating the stability of safety refusal decisions across random seeds and temperature settings. Testing four instruction-tuned models from three families (Llama 3.1 8B, Qwen 2.5 7B, Qwen 3 8B, Gemma 3 12B) on 876 harmful prompts across 20 different sampling configurations (4 temperatures $\times$ 5 random seeds), we find that \textbf{18--28\% of prompts exhibit decision flips}---the model refuses in some configurations but complies in others---depending on the model. Our Safety Stability Index (SSI) reveals that higher temperatures significantly reduce decision stability (Friedman $\chi^2 = 396.81$, $p < 0.001$), with mean within-temperature SSI dropping from 0.977 at temperature 0.0 to 0.942 at temperature 1.0. We validate our findings across all model families using Claude 3.5 Haiku as a unified external judge, achieving 89.0\% inter-judge agreement with our primary Llama 70B judge (Cohen's $\kappa = 0.62$). Within each model, prompts with higher compliance rates exhibit lower stability (Spearman $\rho = -0.47$ to $-0.70$, all $p < 0.001$), indicating that models ``waver'' more on borderline requests. These findings demonstrate that single-shot safety evaluations are insufficient for reliable safety assessment and that evaluation protocols must account for stochastic variation in model behavior. We show that single-shot evaluation agrees with multi-sample ground truth only 92.4\% of the time when pooling across temperatures (94.2--97.7\% at fixed temperature depending on setting), and recommend using at least 3 samples per prompt for reliable safety assessment.
+Current safety evaluations of large language models rely on single-shot testing, implicitly assuming that model responses are deterministic and representative of the model's safety alignment. We challenge this assumption by investigating the stability of safety refusal decisions across random seeds and temperature settings. Testing four instruction-tuned models from three families (Llama 3.1 8B, Qwen 2.5 7B, Qwen 3 8B, Gemma 3 12B) on 876 harmful prompts across 20 different sampling configurations (4 temperatures $\times$ 5 random seeds), we find that \textbf{18--28\% of prompts exhibit decision flips}---the model refuses in some configurations but complies in others---depending on the model. Our Safety Stability Index (SSI) reveals that higher temperatures significantly reduce decision stability (Friedman $\chi^2 = 396.81$, $p < 0.001$), with mean within-temperature SSI dropping from 0.977 at temperature 0.0 to 0.942 at temperature 1.0. We validate our findings across all model families using Claude 3.5 Haiku as a unified external judge, achieving 89.1\% inter-judge agreement with the Llama 70B judge on the two models both judges labeled (Cohen's $\kappa = 0.62$). Within each model, prompts with higher compliance rates exhibit lower stability (Spearman $\rho = -0.47$ to $-0.70$, all $p < 0.001$), indicating that models ``waver'' more on borderline requests. These findings demonstrate that single-shot safety evaluations are insufficient for reliable safety assessment and that evaluation protocols must account for stochastic variation in model behavior. We show that, for Llama 3.1 8B, single-shot evaluation agrees with multi-sample ground truth only 92.5\% of the time when pooling across temperatures (98.7\% at greedy decoding down to 90.3\% at temperature 1.0), and recommend scaling samples with temperature---one at greedy, three at low temperature, more at higher temperatures (where three reach only $\sim$95\%), and ten when pooling---rather than a single flat threshold, for reliable safety assessment.
 \end{abstract}
 
 \section{Introduction}
@@ -36,15 +36,15 @@ As large language models (LLMs) are increasingly deployed in real-world applicat
 
 However, modern LLMs employ stochastic sampling during inference, introducing variability through both temperature-controlled randomness and random seed initialization. While this variability is well-documented for general generation tasks, its impact on safety-critical decisions remains underexplored. If safety decisions are unstable across sampling configurations, single-shot evaluations may significantly misrepresent a model's true safety profile---either overestimating safety by catching a safe sample from an unstable prompt, or underestimating it by observing a failure case that rarely occurs.
 
-In this work, we systematically investigate the stability of LLM safety refusal behavior by testing the same harmful prompts across multiple random seeds and temperature settings. We introduce the \textbf{Safety Stability Index (SSI)}, a metric that quantifies how consistently a model makes the same safety decision across different sampling configurations. We evaluate four instruction-tuned models from three families---Llama 3.1 8B Instruct, Qwen 2.5 7B Instruct, Qwen 3 8B, and Gemma 3 12B Instruct---on 876 harmful prompts from the BeaverTails dataset across 20 configurations (4 temperatures $\times$ 5 random seeds), generating 70,080 total responses. To validate our findings and address potential same-family judge bias, we additionally evaluate the newer models using Claude 3.5 Haiku as an external judge.
+In this work, we systematically investigate the stability of LLM safety refusal behavior by testing the same harmful prompts across multiple random seeds and temperature settings. We introduce the \textbf{Safety Stability Index (SSI)}, a metric that quantifies how consistently a model makes the same safety decision across different sampling configurations. We evaluate four instruction-tuned models from three families---Llama 3.1 8B Instruct, Qwen 2.5 7B Instruct, Qwen 3 8B, and Gemma 3 12B Instruct---on 876 harmful prompts (491 from AdvBench and 385 from HarmBench) across 20 configurations (4 temperatures $\times$ 5 random seeds), generating 70,080 total responses. To validate our findings and address potential same-family judge bias, we additionally evaluate the newer models using Claude 3.5 Haiku as an external judge.
 
 Our findings reveal significant instability in safety decisions:
 \begin{itemize}
-    \item \textbf{24.8\% of prompts exhibit decision flips} across sampling configurations on average, ranging from 18--28\% depending on the model
+    \item \textbf{24.9\% of prompts exhibit decision flips} across sampling configurations on average, ranging from 18--28\% depending on the model
     \item \textbf{Temperature significantly affects stability} (Friedman $\chi^2 = 396.81$, $p < 0.001$): Lower temperatures yield more stable decisions (mean within-temperature SSI = 0.977 at temp 0.0) compared to higher temperatures (mean SSI = 0.942 at temp 1.0)
     \item \textbf{Instability is consistent across model families}: All four models from three families (Llama, Qwen, Gemma) exhibit instability patterns despite different training approaches, suggesting this may be a common property of current safety training in small-to-medium scale models (7B--12B parameters)
     \item \textbf{Borderline prompts exist}: 7.9\% of prompts fall in the highly unstable range (SSI 0.4--0.6), predominantly copyright-related requests where the model is uncertain whether to comply
-    \item \textbf{Single-shot evaluation is unreliable}: Evaluating with N=1 sample agrees with ground truth only 92.4\% of the time when pooling across temperatures (94.2--97.7\% at fixed temperature); N$\geq$3 samples are needed for $>$97\% reliability
+    \item \textbf{Single-shot evaluation is unreliable, and the samples needed scale with temperature}: For Llama 3.1 8B, a single sample agrees with ground truth only 92.5\% of the time when pooling across temperatures (98.7\% at greedy decoding down to 90.3\% at t=1.0); reaching $>$97\% agreement takes one sample at t=0.0, three at low temperature, more at higher temperatures (where three reach only $\sim$95\%), and ten when pooling across temperatures
 \end{itemize}
 
 These results have important implications for safety evaluation practices. Single-shot testing may give a false sense of security or unnecessarily penalize models depending on which random seed is used. We argue that safety benchmarks should report stability metrics alongside accuracy, and that deployment configurations should carefully consider temperature settings to maximize both safety and consistency.
@@ -65,13 +65,13 @@ These results have important implications for safety evaluation practices. Singl
 
 \subsection{Experimental Design}
 
-\textbf{Models.} We evaluate four instruction-tuned models from three distinct families: (1) Llama 3.1 8B Instruct~\cite{grattafiori2024llama}, Meta's open-weight model; (2) Qwen 2.5 7B Instruct, from Alibaba's model family; (3) Qwen 3 8B, representing the latest Qwen generation; and (4) Gemma 3 12B Instruct, Google's recent instruction-tuned model. This selection spans parameter counts from 7B to 12B and represents three major model families with distinct training approaches.
+\textbf{Models.} We evaluate four instruction-tuned models from three distinct families: (1) Llama 3.1 8B Instruct~\cite{grattafiori2024llama}, Meta's open-weight model; (2) Qwen 2.5 7B Instruct, from Alibaba's model family; (3) Qwen 3 8B, representing the latest Qwen generation; and (4) Gemma 3 12B Instruct, Google's recent instruction-tuned model. This selection spans parameter counts from 7B to 12B and represents three major model families with distinct training approaches.\footnote{Exploratory runs not used in the reported results: a fifth model (Mistral-7B-Instruct-v0.3), generated but not carried through the unified-judge evaluation, and a GPT-4o-mini judge piloted on the newer models. Reported results use the Llama-3.1-70B and Claude-3.5-Haiku judges.}
 
-\textbf{Dataset.} We use 876 harmful prompts from the BeaverTails dataset~\cite{ji2023beavertails}, sourced from the \texttt{330k\_train} split filtered to \texttt{is\_safe=False}, deduplicated, and taking the first 876 unique prompts. Categories include violence, hate speech, illegal activities, and other harmful content.
+\textbf{Dataset.} We use 876 harmful prompts assembled from two standard red-teaming benchmarks: the AdvBench harmful-behaviors set~\cite{zou2023advbench} and the HarmBench textual behaviors~\cite{mazeika2024harmbench}. We pool the prompts from both sources and remove exact duplicates and near-duplicates (text normalized to lowercase with collapsed whitespace; near-duplicates removed at a fuzzy string-similarity threshold of $0.9$ via \texttt{difflib.SequenceMatcher}, keeping the first occurrence). The resulting set contains 491 AdvBench and 385 HarmBench prompts (876 total). We use each benchmark's base harmful behavior---the request itself---not adversarial-suffix attack strings.
 
 \textbf{Sampling Configurations.} We test 4 temperature values (0.0, 0.3, 0.7, 1.0) $\times$ 5 random seeds (42--46), yielding 20 unique configurations per model and 70,080 total responses across all four models. At temperature 0.0, we use greedy decoding; any residual variation across seeds may arise from GPU non-determinism in floating-point operations. All inference was performed using vLLM~\cite{kwon2023vllm} for efficient batch generation.
 
-\textbf{Response Classification.} We use Llama 3.1 70B Instruct as our primary judge model to classify each response into three categories. For the newer models (Qwen 3 and Gemma 3), we additionally employ Claude 3.5 Haiku as an external judge from a different model family to validate findings and address potential same-family bias concerns:
+\textbf{Response Classification.} We classify each response into three categories with an LLM judge. The single-model Llama 3.1 8B deep-dive (Sections 4.1--4.2) uses \textbf{Llama 3.1 70B Instruct} as the judge. All cross-model results (Section 4.3 and Table~\ref{tab:multimodel}) use \textbf{Claude 3.5 Haiku} as a unified judge across all four models---a different model family---which gives a consistent cross-model comparison and addresses potential same-family bias. Both judges apply the same rubric:
 \begin{itemize}
     \item \textbf{REFUSE}: Model declines to answer or provides safety-focused redirection
     \item \textbf{PARTIAL}: Model provides limited information with caveats or warnings
@@ -102,7 +102,7 @@ We aggregate SSI scores across prompts to compute mean stability by temperature 
 
 \subsection{Overall Stability}
 
-Figure~\ref{fig:flip_rate} shows that 68\% of prompts produce consistent safety decisions across all 20 configurations, while 32\% [95\% CI: 28.9\%--35.0\%] exhibit at least one flip between different decisions. Of these, 14.3\% [95\% CI: 12.0\%--16.6\%] show substantial instability (SSI $<$ 0.8), while the remaining 17.7\% have occasional flips but maintain strong majority agreement.
+Figure~\ref{fig:flip_rate} shows that 68\% of prompts produce consistent safety decisions across all 20 configurations, while 32\% [95\% CI: 29.0\%--35.1\%] exhibit at least one flip between different decisions. Of these, 14.3\% [95\% CI: 12.1\%--16.7\%] show substantial instability (SSI $<$ 0.8), while the remaining 17.7\% have occasional flips but maintain strong majority agreement.
 
 \begin{figure}[h]
 \centering
@@ -111,7 +111,7 @@ Figure~\ref{fig:flip_rate} shows that 68\% of prompts produce consistent safety 
 \label{fig:flip_rate}
 \end{figure}
 
-The overall response distribution shows that the model predominantly refuses harmful requests (83.1\% REFUSE, 10.9\% PARTIAL, 5.9\% COMPLY), suggesting strong safety alignment on average. However, the substantial proportion of unstable prompts indicates that aggregate statistics obscure significant per-prompt variability. \textbf{Judge Note:} Sections 4.1--4.3 report Llama 3.1 8B results using the \textbf{Llama 70B judge} (32\% flip rate). Table~\ref{tab:multimodel} reports cross-model results using \textbf{Claude 3.5 Haiku} (27.3\% flip rate for Llama). The 4.7 percentage point difference reflects inter-judge variation ($\kappa=0.62$); see Section~\ref{sec:external_judge} for validation.
+The overall response distribution shows that the model predominantly refuses harmful requests (83.1\% REFUSE, 10.9\% PARTIAL, 5.9\% COMPLY), suggesting strong safety alignment on average. However, the substantial proportion of unstable prompts indicates that aggregate statistics obscure significant per-prompt variability. \textbf{Judge Note:} The single-model Llama 3.1 8B deep-dive in Sections 4.1--4.2 uses the \textbf{Llama 70B judge} (32\% flip rate). All cross-model results---the temperature analysis in Section 4.3 (including the within-temperature table) and Table~\ref{tab:multimodel}---use \textbf{Claude 3.5 Haiku} as a unified judge (27.3\% flip rate for Llama; within-temperature flip 5.1\%$\to$23.6\%). The 4.7 percentage-point flip-rate difference for Llama reflects inter-judge variation ($\kappa=0.62$); see Section~\ref{sec:external_judge} for validation.
 
 \subsection{Distribution of Stability Scores}
 
@@ -126,7 +126,7 @@ Figure~\ref{fig:ssi_dist} presents the distribution of SSI scores across all 876
 
 \subsection{Temperature Effects}
 
-Figure~\ref{fig:temp_effect} illustrates the relationship between temperature and both compliance rate and mean SSI. We observe that stability generally decreases as temperature increases (Friedman $\chi^2 = 396.81$, $p < 0.001$, Kendall's $W = 0.038$ indicating a small but highly significant effect). Mean within-temperature SSI drops from 0.977 at temperature 0.0 to 0.942 at temperature 1.0, a decrease of 0.035 [95\% CI: 0.032--0.039]. Post-hoc Wilcoxon signed-rank tests with Bonferroni correction confirm significant decreases in SSI between temperature 0.0 and 1.0 ($p < 0.001$). The flip rate increases from 5.1\% at temperature 0.0 to 23.6\% at temperature 1.0 for Llama 3.1 8B (similar patterns across all models).
+Using the unified Claude 3.5 Haiku judge across all four models, Figure~\ref{fig:temp_effect} illustrates the relationship between temperature and both compliance rate and mean SSI. We observe that stability generally decreases as temperature increases (Friedman $\chi^2 = 396.81$, $p < 0.001$, Kendall's $W = 0.038$ indicating a small but highly significant effect). Mean within-temperature SSI drops from 0.977 at temperature 0.0 to 0.942 at temperature 1.0, a decrease of 0.035 [95\% CI: 0.031--0.039]. Post-hoc Wilcoxon signed-rank tests with Bonferroni correction confirm significant decreases in SSI between temperature 0.0 and 1.0 ($p < 0.001$). The flip rate increases from 5.1\% at temperature 0.0 to 23.6\% at temperature 1.0 for Llama 3.1 8B (similar patterns across all models).
 
 \begin{figure}[h]
 \centering
@@ -143,7 +143,7 @@ To separate seed variance from temperature-induced distribution shift, we comput
 
 \begin{table}[h]
 \centering
-\caption{Within-temperature stability (seed variance only, N=5 seeds). Shows that instability increases with temperature even when holding temperature fixed.}
+\caption{Within-temperature stability (seed variance only, N=5 seeds). Shows that instability increases with temperature even when holding temperature fixed. All values use the unified Claude 3.5 Haiku judge across the four models.}
 \label{tab:within_temp}
 \begin{tabular}{lcccc}
 \toprule
@@ -193,7 +193,7 @@ To understand what makes certain prompts unstable, we conducted an \textbf{explo
 
 A logistic regression classifier predicting instability from linguistic features achieves AUC = 0.73 [95\% CI: 0.69--0.78] in 5-fold cross-validation, indicating that surface-level features partially explain which prompts will be unstable.\footnote{Features used: word count, character count, average word length, sentence count, question mark presence, sensitive term count, code marker presence, and uppercase character ratio.} The most predictive features are average word length, sensitive term count, and word count.
 
-To quantify category effects, we classified prompts into 12 harm categories using keyword matching. \textbf{Copyright-related requests} (N=112) are dramatically more unstable than all other categories: mean SSI = 0.568 with 89.3\% of prompts classified as unstable, compared to misinformation (N=30, SSI = 0.822, 20\% unstable) and hacking (N=118, SSI = 0.862, 22\% unstable). Copyright prompts also show the highest compliance rate (45.9\%), suggesting the model is uncertain whether reproducing copyrighted content constitutes harm. In contrast, \textbf{self-harm prompts} (N=15) are most stable (SSI = 0.990, 0\% unstable), likely because safety training provides clear guidance on this category. This suggests that instability concentrates in categories where harm boundaries are ambiguous. (Note: categories assigned via keyword matching; the ``other'' category contains 292 prompts not matching specific keywords.)
+To quantify category effects, we classified prompts into 12 harm categories using keyword matching. \textbf{Copyright-related requests} (N=112) are dramatically more unstable than all other categories: mean SSI = 0.568 with 89.3\% of prompts classified as unstable, compared to misinformation (N=30, SSI = 0.822, 20\% unstable) and hacking (N=118, SSI = 0.862, 22\% unstable). Copyright prompts also show the highest compliance rate (45.9\%), suggesting the model is uncertain whether reproducing copyrighted content constitutes harm. In contrast, \textbf{self-harm prompts} (N=15) are most stable (SSI = 0.990, 0\% unstable), likely because safety training provides clear guidance on this category. This suggests that instability concentrates in categories where harm boundaries are ambiguous. (Note: the processed prompts carry no native category label---the \texttt{harm\_category} field is empty---so all categories here, including the copyright cluster (N=112), are assigned post-hoc by keyword matching on the prompt text; the ``other'' category contains 292 prompts not matching specific keywords.)
 
 Table~\ref{tab:examples} provides examples of prompts exhibiting high instability, where the model's decision appears sensitive to stochastic sampling factors. These prompts demonstrate a range of instability patterns: some alternate primarily between REFUSE and PARTIAL, while others show more pronounced variation including compliance in some configurations.
 
@@ -227,16 +227,16 @@ Table~\ref{tab:multimodel} summarizes the stability metrics across all four mode
 
 \begin{table}[h]
 \centering
-\caption{Stability comparison across model families with 95\% bootstrap CIs. All models evaluated using Claude 3.5 Haiku as judge. Models sorted by SSI (descending).}
+\caption{Stability comparison across model families. 95\% CIs: Wilson score intervals for Flip Rate and \% Unstable (proportions over 876 prompts); bootstrap over prompts for Mean SSI. All models evaluated using Claude 3.5 Haiku as judge. Models sorted by SSI (descending).}
 \label{tab:multimodel}
 \begin{tabular}{lcccc}
 \toprule
 \textbf{Model} & \textbf{Mean SSI} $\uparrow$ & \textbf{Flip Rate} & \textbf{\% Unstable} & \textbf{Refusal} \\
 \midrule
-Gemma-3-12B & \textbf{.965} [.958, .971] & 18.3\% [15.6, 20.9] & \textbf{6.7\%} [5.3, 8.3] & 78.6\% \\
-Llama-3.1-8B & .944 [.936, .951] & 27.3\% [24.4, 30.1] & 10.4\% [8.4, 12.3] & 79.2\% \\
-Qwen3-8B & .938 [.929, .946] & 27.8\% [24.8, 30.9] & 11.8\% [9.6, 13.9] & 92.5\% \\
-Qwen2.5-7B & .938 [.929, .946] & 26.3\% [23.3, 29.1] & 12.0\% [9.9, 14.2] & 81.3\% \\
+Gemma-3-12B & \textbf{.965} [.958, .971] & 18.4\% [16.0, 21.1] & \textbf{6.7\%} [5.3, 8.6] & 78.5\% \\
+Llama-3.1-8B & .944 [.936, .951] & 27.3\% [24.4, 30.3] & 10.4\% [8.5, 12.6] & 79.3\% \\
+Qwen3-8B & .938 [.929, .946] & 27.7\% [24.9, 30.8] & 11.8\% [9.8, 14.1] & 92.5\% \\
+Qwen2.5-7B & .938 [.929, .946] & 26.3\% [23.4, 29.3] & 12.0\% [10.0, 14.3] & 81.3\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -252,18 +252,18 @@ Figure~\ref{fig:model_distribution} shows the response distribution (REFUSE, PAR
 \label{fig:model_distribution}
 \end{figure}
 
-\textbf{Judge Model.} We use Llama 3.1 70B Instruct as the primary judge model, which is distinct from the 8B models being evaluated. Prior work on LLM-as-judge has shown strong correlation with human annotations for safety-related tasks~\cite{zheng2023judging}. The three-class rubric (REFUSE, PARTIAL, COMPLY) was designed to capture the spectrum of safety responses, with PARTIAL indicating hedged or caveat-laden responses that neither fully refuse nor fully comply.
+\textbf{Judge Model.} We use Llama 3.1 70B Instruct as the judge for the single-model Llama-3.1-8B analysis, which is distinct from the 8B model being evaluated. Prior work on LLM-as-judge has shown strong correlation with human annotations for safety-related tasks~\cite{zheng2023judging}. The three-class rubric (REFUSE, PARTIAL, COMPLY) was designed to capture the spectrum of safety responses, with PARTIAL indicating hedged or caveat-laden responses that neither fully refuse nor fully comply.
 
 \subsection{External Judge Validation}
 \label{sec:external_judge}
 
 To address potential same-family bias concerns with our Llama-based judge and ensure methodological consistency across all models, we evaluated \textit{all} 70,080 responses using Claude 3.5 Haiku as an external judge from Anthropic's model family. This provides cross-validation with a judge trained on entirely different data and by a different organization.
 
-\textbf{Inter-Judge Agreement.} Comparing Claude 3.5 Haiku to Llama 70B judgments on the Llama 3.1 8B and Qwen 2.5 7B responses (35,040 samples), we observe 89.0\% exact agreement on the three-class classification, with Cohen's $\kappa = 0.62$ indicating substantial inter-rater reliability. Table~\ref{tab:confusion_matrix} shows the confusion matrix. The largest disagreements occur when Llama 70B labels a response as REFUSE but Claude Haiku labels it as PARTIAL (1,580 cases), suggesting Claude Haiku applies a stricter definition of full refusal. Crucially, the \textit{relative ranking} of model stability remains consistent across judges.
+\textbf{Inter-Judge Agreement.} Comparing Claude 3.5 Haiku to Llama 70B judgments on the Llama 3.1 8B and Qwen 2.5 7B responses---the only two models labeled by both judges, since the Llama 70B judge was not run on Gemma 3 or Qwen 3---we observe 89.1\% exact agreement on the three-class classification over the 35,005 valid pairs (of 35,040 nominal; 35 excluded for a non-three-class label), with Cohen's $\kappa = 0.62$ indicating substantial inter-rater reliability. Table~\ref{tab:confusion_matrix} shows the confusion matrix. The largest disagreements occur when Llama 70B labels a response as REFUSE but Claude Haiku labels it as PARTIAL (1,580 cases), suggesting Claude Haiku applies a stricter definition of full refusal. Crucially, the \textit{relative ranking} of model stability remains consistent across judges.
 
 \begin{table}[h]
 \centering
-\caption{Confusion matrix comparing Llama 70B and Claude Haiku judges on 35,040 responses. Overall agreement: 89.0\%, Cohen's $\kappa$ = 0.62.}
+\caption{Confusion matrix comparing the Llama 70B and Claude Haiku judges on the 35,005 valid Llama 3.1 8B and Qwen 2.5 7B response pairs (of 35,040; 35 excluded where a judge returned a non-three-class label) --- the two models labeled by both judges. Overall agreement: 89.1\%, Cohen's $\kappa$ = 0.62.}
 \label{tab:confusion_matrix}
 \begin{tabular}{lccc|c}
 \toprule
@@ -274,63 +274,62 @@ REFUSE & 27,933 & 1,580 & 940 & 30,453 \\
 PARTIAL & 197 & 1,842 & 558 & 2,597 \\
 COMPLY & 6 & 532 & 1,417 & 1,955 \\
 \midrule
-Total & 28,136 & 3,954 & 2,915 & 35,040 \\
+Total & 28,136 & 3,954 & 2,915 & 35,005 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Unified Results.} Table~\ref{tab:multimodel} reports all metrics using Claude 3.5 Haiku as the judge for all four models, ensuring methodological consistency in cross-model comparisons. The high inter-judge agreement (89.0\%, $\kappa = 0.62$) validates that our instability findings are robust to judge selection and not artifacts of same-family bias.
+\textbf{Unified Results.} Table~\ref{tab:multimodel} reports all metrics using Claude 3.5 Haiku as the judge for all four models, ensuring methodological consistency in cross-model comparisons. The high inter-judge agreement (89.1\%, $\kappa = 0.62$, measured on the two models with both judges) validates that our instability findings are robust to judge selection and not artifacts of same-family bias.
 
 \textbf{Bounding Judge Noise Contribution.} To quantify how much measured instability reflects judge labeling ambiguity versus true model variation, we recomputed metrics using only responses where both judges agreed on classification. When restricting to consensus responses, mean SSI increased from 0.941 to 0.965, and flip rate decreased from 26.8\% to 17.5\%---a reduction of 9.3 percentage points. This 9.3pp reduction represents an \textit{upper bound} on judge noise contribution: some excluded responses may reflect genuine model variation that happens to produce borderline outputs difficult for judges to classify consistently. Under this conservative interpretation, at least two-thirds of observed flip rate represents true model instability, with the remaining portion attributable to a combination of judge noise and genuinely ambiguous model outputs.
 
 \subsection{Sample Size Requirements for Reliable Evaluation}
 
-A key practical question is: how many samples are needed for reliable safety evaluation? We address this by simulating subsampling from our N=20 ground truth. For each prompt, we randomly draw $n$ samples (where $n \in \{1, 2, 3, ..., 20\}$), compute the majority label, and measure agreement with the full-data majority.
+A key practical question is: how many samples are needed for reliable safety evaluation? We address this on the Llama 3.1 8B responses (Llama 70B judge) by simulating subsampling from the N=20 ground truth. For each prompt, we draw $n$ of the 20 configurations \emph{without replacement} (as in the fixed-temperature analysis), compute the majority label, and measure agreement with the full-data majority; we average over bootstrap resamples. At $n=20$ all configurations are drawn, so agreement is 100\% by construction.
 
-Figure~\ref{fig:sample_size} shows that single-shot evaluation (N=1) agrees with the ground truth only 92.4\% [95\% CI: 91.0\%--93.8\%] of the time---meaning approximately 7.6\% of prompts would be misclassified by single-sample testing. Agreement rises to 95\% at N=3 and reaches 99\% only at N=20.
+Figure~\ref{fig:sample_size} shows that single-shot evaluation of Llama 3.1 8B (N=1) agrees with the ground truth only 92.5\% [95\% CI: 91.0\%--93.8\%] of the time---meaning approximately 7.5\% of prompts would be misclassified by single-sample testing. Agreement rises to 95\% at N=3; using all 20 configurations (N=20) reproduces the full-data majority by construction (100\%).
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.7\textwidth]{figures/sample_size_reliability.pdf}
-\caption{Evaluation reliability as a function of sample size. Single-shot testing (N=1) achieves only 92.4\% agreement with ground truth. The 95\% reliability threshold requires N$\geq$3 samples.}
+\caption{Evaluation reliability as a function of sample size (Llama 3.1 8B, pooled across temperatures). Single-shot testing (N=1) achieves only 92.5\% agreement with ground truth; the 95\% reliability threshold requires N$\geq$3 samples (pooled).}
 \label{fig:sample_size}
 \end{figure}
 
 \begin{table}[h]
 \centering
-\caption{Sample size requirements for reliable safety evaluation.}
+\caption{Sample size requirements for reliable safety evaluation (Llama 3.1 8B single-model, Llama 70B judge). Subsampling is without replacement (averaged over bootstrap resamples); N=20 uses all configurations and is therefore 100\% by construction.}
 \label{tab:sample_size}
 \begin{tabular}{ccc}
 \toprule
 \textbf{N Samples} & \textbf{Agreement (\%)}& \textbf{95\% CI} \\
 \midrule
-1 & 92.4 & [91.0, 93.8] \\
-3 & 95.0 & [93.8, 96.2] \\
+1 & 92.5 & [91.0, 93.8] \\
+3 & 95.1 & [93.8, 96.2] \\
 5 & 96.3 & [95.1, 97.3] \\
 10 & 97.8 & [96.7, 98.5] \\
-20 & 99.4 & [99.1, 99.8] \\
+20 & 100.0 & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-These results suggest that safety benchmarks should use at least 3 samples per prompt for 95\% reliability, with more samples recommended for high-stakes deployment decisions.
+These results suggest that safety benchmarks should use at least 3 samples per prompt for 95\% reliability when pooling across temperatures, and more for a stricter bar---the full seed set at high temperature, or ten pooled samples, for $>$97\%---with additional sampling for high-stakes deployment decisions.
 
 \subsubsection{Fixed-Temperature Reliability}
 
-The above analysis pools samples across temperatures. However, most benchmarks operate at a fixed temperature. Table~\ref{tab:fixed_temp_sample_size} shows reliability when temperature is held constant and only seeds vary. At greedy decoding (t=0.0), single-shot evaluation achieves 97.7\% agreement with the 5-seed ground truth---substantially higher than the 92.4\% from the pooled analysis. At higher temperatures, single-shot reliability decreases: 95.0\% at t=0.7 and 94.2\% at t=1.0. For benchmarks that fix temperature at common defaults like t=0.7, N$\geq$3 seeds provides $>$97\% reliability.
+The above analysis pools samples across temperatures. However, most benchmarks operate at a fixed temperature. Table~\ref{tab:fixed_temp_sample_size} shows reliability when temperature is held constant and only seeds vary. At greedy decoding (t=0.0), single-shot evaluation is already reliable (98.7\% agreement with the 5-seed ground truth). Reliability degrades as temperature rises: single-shot agreement falls to 92.8\% at t=0.7 and 90.3\% at t=1.0. The number of seeds needed for $>$97\% agreement therefore scales with temperature---one seed suffices at t=0.0, three at t$\leq$0.3 (97.4\%), but at t=0.7 and t=1.0 three seeds reach only 96.0\% and 94.8\%, so $>$97\% requires the full five-seed set.
 
 \begin{table}[h]
 \centering
-\caption{Sample size reliability at fixed temperatures. Values show \% agreement with 5-seed ground truth. At greedy decoding (t=0.0), single-shot evaluation is 97.7\% reliable.}
+\caption{Sample size reliability at fixed temperatures (Llama 3.1 8B, Llama 70B judge). Values show \% agreement with the 5-seed ground truth; N=5 uses all seeds and is therefore 100\% by construction. Single-shot is reliable at greedy decoding (98.7\%) but degrades with temperature (90.3\% at t=1.0).}
 \label{tab:fixed_temp_sample_size}
 \begin{tabular}{ccccc}
 \toprule
 \textbf{N Seeds} & \textbf{t=0.0} & \textbf{t=0.3} & \textbf{t=0.7} & \textbf{t=1.0} \\
 \midrule
-1 & 97.7\% & 95.9\% & 95.0\% & 94.2\% \\
-2 & 97.6\% & 96.2\% & 95.2\% & 94.2\% \\
-3 & 98.9\% & 98.1\% & 97.7\% & 97.2\% \\
-5 & 100\% & 100\% & 100\% & 100\% \\
+1 & 98.7\% & 95.1\% & 92.8\% & 90.3\% \\
+3 & 99.7\% & 97.4\% & 96.0\% & 94.8\% \\
+5 (full) & 100\% & 100\% & 100\% & 100\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -362,7 +361,7 @@ Our findings demonstrate that single-shot safety evaluations can significantly m
 
 \textbf{Benchmark Reliability.} Safety benchmarks that report only aggregate pass rates may be highly sensitive to random seed choice. Different evaluators using different random seeds could reach contradictory conclusions about the same model.
 
-\textbf{Deployment Considerations.} For safety-critical applications, using deterministic sampling (temperature 0.0) provides the most stable behavior (mean within-temperature SSI = 0.977). At this temperature, only 9.5\% of prompts show instability, compared to 19.6\% at temperature 1.0.
+\textbf{Deployment Considerations.} For safety-critical applications, using deterministic sampling (temperature 0.0) provides the most stable behavior (mean within-temperature SSI = 0.977). At this temperature, the mean within-temperature flip rate is just 7.8\% (Table~\ref{tab:within_temp}), compared to 19.4\% at temperature 1.0.
 
 \textbf{Adversarial Robustness.} The existence of borderline prompts that flip between refuse and comply creates a practical vulnerability: adversaries can exploit stochastic sampling by repeatedly querying until obtaining a harmful response. We quantified this risk by computing expected queries to first compliance for prompts where any COMPLY response was observed (N=454 prompt-model pairs). The median expected queries is just 2, with 69\% of exploitable prompts yielding compliance within 5 queries. This demonstrates that instability creates exploitable attack surfaces even for prompts that usually refuse.
 
@@ -372,13 +371,13 @@ Our findings demonstrate that single-shot safety evaluations can significantly m
 
 \textbf{Model Scale.} While we evaluate four models from three families (Llama, Qwen, and Gemma), all are in the 7-12B parameter range. Larger models (70B, 405B) or closed-source models (GPT-4, Claude) may exhibit different stability characteristics. Future work should extend this analysis across model scales.
 
-\textbf{Judge Model.} We primarily use Llama 3.1 70B Instruct as the judge, supplemented by Claude 3.5 Haiku for cross-validation of newer models. While the consistency between these judges increases confidence in our findings, human annotation on a subset of responses would further strengthen conclusions.
+\textbf{Judge Model.} The single-model Llama 3.1 8B analysis uses Llama 3.1 70B Instruct as the judge; all cross-model results use Claude 3.5 Haiku as a unified judge across the four models. While the agreement between these judges ($\kappa=0.62$) increases confidence in our findings, human annotation on a subset of responses would further strengthen conclusions.
 
 \textbf{Limited Seed Count.} We test only 5 seeds per temperature. While sufficient to detect instability, more seeds would provide tighter confidence intervals on stability estimates.
 
-\textbf{Dataset Scope.} Our analysis uses BeaverTails prompts. Different prompt distributions (e.g., adversarially-crafted jailbreaks from HarmBench) may exhibit different stability patterns.
+\textbf{Dataset Scope.} Our analysis uses direct harmful-behavior requests from AdvBench and HarmBench. Different prompt distributions---e.g., obfuscated or adversarially-crafted jailbreaks, or human-preference safety datasets such as BeaverTails~\cite{ji2023beavertails}---may exhibit different stability patterns.
 
-\textbf{Temperature-Seed Pooling.} Our primary SSI metric pools responses across both temperatures and seeds (N=20 configurations). Benchmarks that fix temperature may experience different reliability characteristics; we provide within-temperature analyses in Section 4.3.1 to address this. At greedy decoding (t=0.0), single-shot evaluation is 97.7\% reliable, compared to 92.4\% when pooling across temperatures.
+\textbf{Temperature-Seed Pooling.} Our primary SSI metric pools responses across both temperatures and seeds (N=20 configurations). Benchmarks that fix temperature may experience different reliability characteristics; we provide within-temperature analyses in Section 4.3.1 to address this. At greedy decoding (t=0.0), single-shot evaluation is 98.7\% reliable, compared to 92.5\% when pooling across temperatures.
 
 \textbf{Greedy Decoding Non-Determinism.} We verified greedy decoding determinism by comparing response texts across seeds at temperature 0.0. Llama 3.1 8B showed 73.4\% exact-match responses across seeds, while Qwen 2.5 7B showed only 17.6\% exact matches, indicating substantial inference non-determinism even at temperature 0.0. This variation likely stems from GPU floating-point non-determinism in batched vLLM inference. Of prompts with byte-identical responses, judge label flips occurred in only 0.2\% of cases for Llama, confirming that when responses are truly identical, judge labeling is highly consistent. The observed flip rates at t=0.0 (5--12\%) thus reflect genuine inference variation rather than judge noise. To definitively separate inference artifacts from model behavior, future work should test with strict determinism settings (e.g., \texttt{CUBLAS\_WORKSPACE\_CONFIG=:4096:8}, \texttt{torch.use\_deterministic\_algorithms(True)}).
 
@@ -444,9 +443,9 @@ Judge Prompt & See below \\
 
 \section{Conclusion}
 
-We have demonstrated that safety refusal decisions in LLMs exhibit significant instability across random seeds and temperature settings. Evaluating four instruction-tuned models from three families (Llama, Qwen, and Gemma) across 70,080 total responses, we find that 18--28\% of prompts exhibit decision flips depending on the model. Temperature significantly affects stability ($p < 0.001$), with instability rates increasing from 9.5\% at temperature 0.0 to 19.6\% at temperature 1.0. Importantly, these patterns are consistent across all model families and validated by an external Claude judge, suggesting that safety decision instability is common across the model families and scales tested (7B--12B parameters). Whether larger models (70B+) or different training approaches exhibit similar instability remains an important open question.
+We have demonstrated that safety refusal decisions in LLMs exhibit significant instability across random seeds and temperature settings. Evaluating four instruction-tuned models from three families (Llama, Qwen, and Gemma) across 70,080 total responses, we find that 18--28\% of prompts exhibit decision flips depending on the model. Temperature significantly affects stability ($p < 0.001$), with the mean within-temperature flip rate increasing from 7.8\% at temperature 0.0 to 19.4\% at temperature 1.0. Importantly, these patterns are consistent across all model families and validated by an external Claude judge, suggesting that safety decision instability is common across the model families and scales tested (7B--12B parameters). Whether larger models (70B+) or different training approaches exhibit similar instability remains an important open question.
 
-Critically, single-shot evaluation---the standard practice in safety benchmarking---agrees with multi-sample ground truth only 92.4\% of the time when pooling across temperatures (94.2--97.7\% at fixed temperature depending on setting). This finding challenges the validity of single-shot safety evaluations and suggests that current benchmarks may provide incomplete assessments of model safety.
+Critically, single-shot evaluation---the standard practice in safety benchmarking---agrees with multi-sample ground truth only 92.5\% of the time when pooling across temperatures (98.7\% at greedy decoding down to 90.3\% at temperature 1.0). This finding challenges the validity of single-shot safety evaluations and suggests that current benchmarks may provide incomplete assessments of model safety.
 
 We recommend that safety evaluation protocols: (1) use at least N=3 samples per prompt for 95\% reliability, (2) report stability metrics alongside aggregate pass rates, (3) use lower temperatures for safety-critical deployments, and (4) implement ensemble voting for high-stakes decisions. Future work should explore whether larger models (70B+) or different safety training techniques (DPO, constitutional AI) produce more stable behavior.
 
