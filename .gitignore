@@ -76,5 +76,12 @@ paper/arxiv_submission.zip
 data/*
 !data/README.md
 
+# Demo data — same never-commit rule as data/. The published demo file is
+# LABELS ONLY (judge labels + SSI stats; raw completions redacted 2026-07-01 and
+# purged from history). Only that one labels-only file is tracked; any other file
+# under demo/data/ (esp. a regenerated raw prompts.json) must never be committed.
+demo/data/*
+!demo/data/prompts.json
+
 # Pilot artifact bundle (bloat; regenerable)
 artifact2_pilot_results.tar.gz
