@@ -14,3 +14,11 @@ as a git bundle to a private iCloud folder:
   Delete bundles older than the two most recent.
 - **Restore:** `git clone <bundle-file> <dir>`
 - Bundles only contain *committed* work — commit before refreshing.
+
+## Sole-copy data (data/results/, 266 MB — gitignored, NOT in the bundle)
+
+Backed up separately as
+`code_workspace_backups/data/safety-refusal-stability_data-results_2026-07-01.tar.gz`
+(66 MB compressed, 176 entries) with a `SHA256SUMS` manifest verified after copy.
+Refresh: re-tar `data/results`, recompute the SHA256 line, re-verify with
+`shasum -a 256 -c SHA256SUMS` in the destination dir.
