@@ -32,6 +32,10 @@ MODEL_DISPLAY_NAMES = {
     "google_gemma_3_12b_it": "Gemma 3 12B",
 }
 MODEL_STATS = DATA["metadata"]["model_stats"]
+PROMPT_ID_NOTE = (
+    "Prompt {id}. Prompt text isn't included in this demo. The ID matches the repo's label files; "
+    "scripts/01_download_data.py and 02_preprocess.py rebuild the prompts from AdvBench and HarmBench."
+)
 
 
 def get_dropdown_choices(model_id):
@@ -40,8 +44,8 @@ def get_dropdown_choices(model_id):
     for prompt in DATA["prompts"]:
         if model_id in prompt["models"]:
             ssi = prompt["models"][model_id]["ssi"]
-            text = prompt["text"][:50] + "..." if len(prompt["text"]) > 50 else prompt["text"]
-            display = f"[SSI: {ssi:.2f}] {text}"
+            category = prompt["category"].replace("_", " ")
+            display = f"[SSI: {ssi:.2f}] {prompt['id']} ({category})"
             choices.append((display, prompt["id"]))
     # Sort by SSI (extract from display string)
     choices.sort(key=lambda x: float(x[0].split("[SSI: ")[1].split("]")[0]))
@@ -181,7 +185,7 @@ def format_response_display(prompt_data, model_id, temp, seed):
     model_data = prompt_data["models"][model_id]
     for r in model_data["responses"]:
         if r["temp"] == temp and r["seed"] == seed:
-            return f"**Label:** {r['label']}\n\n**Response:**\n{r['text']}"
+            return f"**Label:** {r['label']}\n\n*Response text isn't included in this demo; it ships labels only.*"
 
     return "Response not found."
 
@@ -257,8 +261,8 @@ def on_prompt_select(prompt_id, model_id):
     # Grid
     grid_html = create_grid_html(prompt_data, model_id)
 
-    # Full prompt text
-    prompt_text = prompt_data["text"]
+    # Prompt text isn't shipped; show the ID used in the repo's label files
+    prompt_text = PROMPT_ID_NOTE.format(id=prompt_data["id"])
 
     # Default comparison panels - pick first two different responses
     responses = model_data["responses"]
@@ -306,7 +310,7 @@ def build_app():
 
         # Header
         gr.Markdown("# Safety Stability Explorer", elem_classes=["main-title"])
-        gr.Markdown("**18-28% of harmful prompts flip between refuse and comply across random seeds** (4 models, 70,080 responses)", elem_classes=["subtitle"])
+        gr.Markdown("**18-28% of harmful prompts flip: their refuse/partial/comply label changes across temperatures and seeds** (4 models, 70,080 responses)", elem_classes=["subtitle"])
 
         # Model stats summary
         gr.HTML(create_model_stats_html())
@@ -336,7 +340,7 @@ def build_app():
 
         # Full prompt text
         prompt_text = gr.Textbox(
-            label="Full Prompt",
+            label="Prompt",
             lines=2,
             interactive=False,
             elem_classes=["prompt-text"],
@@ -349,7 +353,7 @@ def build_app():
 
         # Cell selectors for comparison
         gr.Markdown("### Compare Responses")
-        gr.Markdown("*Select temperature and seed to view the full response*")
+        gr.Markdown("*Select temperature and seed to view that configuration's label*")
 
         with gr.Row():
             with gr.Column():
