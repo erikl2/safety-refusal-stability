@@ -2,7 +2,7 @@
 
 **Research investigating how stable LLM safety refusal decisions are across different random seeds and temperature settings.**
 
-**[Interactive Demo on Hugging Face Spaces](https://huggingface.co/spaces/elarsen21/safety-stability-explorer)**
+**Paper:** [arXiv:2512.12066](https://arxiv.org/abs/2512.12066) (v4, October 2026) · **[Interactive Demo on Hugging Face Spaces](https://huggingface.co/spaces/elarsen21/safety-stability-explorer)**
 
 ## Key Finding
 
@@ -66,7 +66,7 @@ We use 876 harmful prompts drawn from two established red-teaming benchmarks
 
 ### Inter-Judge Validation
 
-- **89.0%** exact agreement between Claude 3.5 Haiku and Llama 70B judges
+- **89.1%** exact agreement between Claude 3.5 Haiku and Llama 70B judges (on the two models both judges labeled)
 - **Cohen's κ = 0.62** indicating substantial inter-rater reliability
 
 ## Repository Structure

@@ -85,3 +85,17 @@ demo/data/*
 
 # Pilot artifact bundle (bloat; regenerable)
 artifact2_pilot_results.tar.gz
+
+# Internal working notes (kept locally, not published)
+PAPER_CORRECTIONS.md
+critiques/
+PIPELINE_STATUS.md
+BACKUP.md
+VALIDATION_REPORT.md
+RESEARCH_REPORT.md
+paper/ARXIV_*_SUBMIT.md
+paper/CORRECTION_DRAFT_*.md
+paper/paper_v*.pdf
+paper/*.zip
+artifact2_*
+texput.log
